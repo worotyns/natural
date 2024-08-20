@@ -1,5 +1,5 @@
 import { sprintf } from "../deps.ts";
-import { type Runtime, denokv } from "../mod.ts";
+import { denokv, type Runtime } from "../mod.ts";
 
 const services = {
   email(email: string, subject: string, body: string): Promise<void> {

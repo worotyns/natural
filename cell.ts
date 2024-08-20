@@ -154,11 +154,16 @@ const createContext = <S>(
   return ctx;
 };
 
+export type Cell = (
+  keyValueContextToExtend: Record<string, unknown>,
+  resumedState?: CellState,
+) => Promise<CellState>;
+
 export const cell = <S>(
   identity: Identity,
   runner: (ctx: CellCtx<S>) => Promise<void>,
   runtime: Runtime<S>,
-) => {
+): Cell => {
   return async (
     keyValueContextToExtend: Record<string, unknown> = {},
     resumedState?: CellState,

@@ -2,6 +2,7 @@ import { AssertionError } from "./errors.ts";
 import { type AnyAtom, atom, isAtom } from "./atom.ts";
 import { deserialize, type Identity, serialize } from "./identifier.ts";
 import { isMolecule, type Molecule, molecule } from "./molecule.ts";
+import type { NaturalRepo } from "./runtime.ts";
 
 type StoredItem = { t: number; v: unknown };
 
@@ -12,7 +13,8 @@ enum ObjectType {
   molecule = 2,
 }
 
-const restore = <T = unknown>(identifier: Identity) => {
+// deno-lint-ignore require-await
+const restore = async <T = unknown>(identifier: Identity) => {
   const serialized = serialize(identifier);
   if (!store.has(serialized)) {
     return null;
@@ -35,7 +37,8 @@ const restore = <T = unknown>(identifier: Identity) => {
   }
 };
 
-const persist = (...items: Array<AnyAtom | Molecule>) => {
+// deno-lint-ignore require-await
+const persist = async (...items: Array<AnyAtom | Molecule>) => {
   items.forEach((item) => {
     if (isAtom(item)) {
       store.set(item.name, {
@@ -53,7 +56,7 @@ const persist = (...items: Array<AnyAtom | Molecule>) => {
   });
 };
 
-export const memory = {
+export const memory: NaturalRepo & { store: Map<string, StoredItem> } = {
   restore,
   persist,
   store,

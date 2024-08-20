@@ -18,7 +18,7 @@ export const molecule = (
   identity: Identity,
   atoms: AnyAtom[],
   version: string = "",
-) => {
+): Molecule => {
   return {
     identity: identity,
     version: version,

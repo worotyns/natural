@@ -2,6 +2,7 @@ import { AssertionError } from "./errors.ts";
 import { type AnyAtom, atom, isAtom } from "./atom.ts";
 import { type Identity, serialize } from "./identifier.ts";
 import { isMolecule, type Molecule, molecule } from "./molecule.ts";
+import { NaturalRepo } from "./runtime.ts";
 
 type StoredItem = { t: number; v: unknown };
 
@@ -12,7 +13,9 @@ enum ObjectType {
 
 const db = await Deno.openKv();
 
-const restore = async <T = unknown>(identifier: Identity) => {
+const restore = async <T = unknown>(
+  identifier: Identity,
+): Promise<T | null> => {
   const item = await db.get<StoredItem>(identifier);
 
   if (!item.value) {
@@ -72,7 +75,12 @@ const persist = async (...items: Array<AnyAtom | Molecule>) => {
   await transaction.commit();
 };
 
-export const denokv = {
+type NaturalRepoHelpers = {
+  clear: () => Promise<void>;
+  dump: () => Promise<void>;
+};
+
+export const denokv: NaturalRepo & NaturalRepoHelpers = {
   restore,
   persist,
   async clear() {

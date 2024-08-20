@@ -17,7 +17,7 @@ export const atom = <T = unknown>(
   name: IdentityItem,
   value: T,
   version = "",
-) => {
+): AnyAtom => {
   const prevValues: T[] = [];
   return {
     name,

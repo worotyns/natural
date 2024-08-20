@@ -1,4 +1,4 @@
-import { type Molecule, organism, deserialize, serialize } from "../mod.ts";
+import { deserialize, type Molecule, organism, serialize } from "../mod.ts";
 import { assert } from "../deps.ts";
 import { testing } from "./testing.ts";
 const dev = organism(["dev"], testing);
@@ -79,18 +79,18 @@ const result = await evolution({
 });
 
 const result2 = await evolution({
-  invited: 'dev:users:jane@email.com',
-  inviting: 'dev:users:joe@email.com',
+  invited: "dev:users:jane@email.com",
+  inviting: "dev:users:joe@email.com",
 }, result);
 
 console.log(result.serialize());
 
 // Simulate woke up with code
 const afterClick = await evolution({
-  'email.clicked': 'dev:jane@email.com',
-  'email.token': '1234',
+  "email.clicked": "dev:jane@email.com",
+  "email.token": "1234",
 }, result2);
 
 console.log(afterClick.serialize());
 
-await (dev.runtime.repository as any).dump()
+await (dev.runtime.repository as any).dump();

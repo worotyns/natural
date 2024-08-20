@@ -3,7 +3,7 @@ import { sprintf } from "./deps.ts";
 class CoreError extends Error {
   name = "CoreError";
 
-  static format(formatString: string, ...args: unknown[]) {
+  static format(formatString: string, ...args: unknown[]): CoreError {
     return new this().format(formatString, ...args);
   }
 

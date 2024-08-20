@@ -15,26 +15,32 @@ export function revoke(permissions: number, role: number) {
   return permissions & ~role;
 }
 
-export function or(permission: number, ...roles: (number | boolean)[]): boolean {
+export function or(
+  permission: number,
+  ...roles: (number | boolean)[]
+): boolean {
   for (const role of roles) {
-    if (typeof role === 'number') {
+    if (typeof role === "number") {
       if (has(permission, role)) {
         return true;
       }
-    } else if (typeof role === 'boolean') {
+    } else if (typeof role === "boolean") {
       return role;
     }
   }
   return false;
 }
 
-export function and(permission: number, ...roles: (number | boolean)[]): boolean {
+export function and(
+  permission: number,
+  ...roles: (number | boolean)[]
+): boolean {
   for (const role of roles) {
-    if (typeof role === 'number') {
+    if (typeof role === "number") {
       if (!has(permission, role)) {
         return false;
       }
-    } else if (typeof role === 'boolean') {
+    } else if (typeof role === "boolean") {
       return role;
     }
   }
@@ -46,12 +52,14 @@ export function combine(...roles: number[]): number {
 }
 
 export function flags<T>(definitions: T): Map<T[keyof T], number> {
-  
-  assert(Array.isArray(definitions), 'Definitions must be an array');
-  assert(definitions.length < 32, 'Cannot define more than max integer safe permissions');
+  assert(Array.isArray(definitions), "Definitions must be an array");
+  assert(
+    definitions.length < 32,
+    "Cannot define more than max integer safe permissions",
+  );
 
   const flags = new Map<T[keyof T], number>();
-  
+
   for (let i = 0; i < definitions.length; i++) {
     flags.set(definitions[i], 1 << i);
   }
