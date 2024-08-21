@@ -1,4 +1,4 @@
-export { decodeTime, monotonicUlid } from "@std/ulid";
+export { decodeTime, monotonicUlid, ulid as baseUlid } from "@std/ulid";
 export * as v from "@valibot/valibot";
 export { sprintf } from "@std/fmt/printf";
 export {

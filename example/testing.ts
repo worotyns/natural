@@ -1,6 +1,5 @@
 import { sprintf } from "../deps.ts";
-import { memory } from "../memory.ts";
-import type { Runtime } from "../mod.ts";
+import { type Runtime, memory, memory_activity } from "../mod.ts";
 
 const services = {
   email(email: string, subject: string, body: string): Promise<void> {
@@ -25,4 +24,5 @@ export const testing: Runtime<typeof services> = {
   secret: "secret",
   repository: memory,
   services: services,
+  activity: memory_activity,
 };

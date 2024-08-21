@@ -1,4 +1,4 @@
-import { type Atom, atom } from "./mod.ts";
+import { type Atom, atom } from "./atom.ts";
 import { assertEquals } from "./deps.ts";
 import { testing } from "./example/testing.ts";
 import { assert } from "./utils.ts";
