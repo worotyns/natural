@@ -2,7 +2,7 @@ import { AssertionError } from "./errors.ts";
 import { type AnyAtom, atom, isAtom } from "./atom.ts";
 import { type Identity, serialize } from "./identifier.ts";
 import { isMolecule, type Molecule, molecule } from "./molecule.ts";
-import { NaturalRepo } from "./runtime.ts";
+import type { NaturalRepo } from "./runtime.ts";
 
 type StoredItem = { t: number; v: unknown };
 
@@ -26,7 +26,7 @@ const restore = async <T = unknown>(
 
   switch (t) {
     case ObjectType.atom:
-      return atom(serialize(identifier), v) as T | null;
+      return atom(serialize(identifier), v, item.versionstamp) as T | null;
     case ObjectType.molecule:
       return molecule(
         identifier,
@@ -55,7 +55,7 @@ const persist = async (...items: Array<AnyAtom | Molecule>) => {
       if (item.version) {
         transaction.check(toAtomicCheck(item));
       }
-      transaction.set([item.name], {
+      transaction.set(item.identity, {
         t: ObjectType.atom,
         v: item.value,
       });

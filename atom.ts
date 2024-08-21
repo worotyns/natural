@@ -14,16 +14,19 @@ export type AnyAtom = Atom<any>;
 
 // basic primitive
 export const atom = <T = unknown>(
-  name: IdentityItem,
+  name: IdentityItem | Identity,
   value: T,
   version = "",
 ): AnyAtom => {
   const prevValues: T[] = [];
+  const [joinedName, identity] = Array.isArray(name)
+    ? [name.join(":"), name]
+    : [name, [name]];
   return {
-    name,
+    name: joinedName,
     value,
     version,
-    identity: [name],
+    identity: identity,
     wasModified() {
       return prevValues.length > 0 && !prevValues.includes(value);
     },

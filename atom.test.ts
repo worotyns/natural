@@ -21,7 +21,7 @@ Deno.test("atom", async () => {
 
   assertEquals(restored.name, "sample");
   assertEquals(restored.value, ["as"]);
-  assertEquals(restored.version, "");
+  assert(restored.version !== "", "version was assigned");
   assertEquals(restored.identity, ["sample"]);
   assertEquals(restored.wasModified(), false);
   restored.mutate(["as", "sa"]);

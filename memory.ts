@@ -3,10 +3,14 @@ import { type AnyAtom, atom, isAtom } from "./atom.ts";
 import { deserialize, type Identity, serialize } from "./identifier.ts";
 import { isMolecule, type Molecule, molecule } from "./molecule.ts";
 import type { NaturalRepo } from "./runtime.ts";
+import { ulid } from "./utils.ts";
 
 type StoredItem = { t: number; v: unknown };
 
-const store: Map<string, StoredItem> = new Map();
+const store: Map<
+  string,
+  { metadata: { versionstamp: string }; value: StoredItem }
+> = new Map();
 
 enum ObjectType {
   atom = 1,
@@ -19,18 +23,20 @@ const restore = async <T = unknown>(identifier: Identity) => {
   if (!store.has(serialized)) {
     return null;
   }
-
-  const { t, v } = store.get(serialized)!;
+  const { metadata: { versionstamp }, value: { t, v } } = store.get(
+    serialized,
+  )!;
 
   switch (t) {
     case ObjectType.atom:
-      return atom(serialized, v) as T | null;
+      return atom(serialized, v, versionstamp) as T | null;
     case ObjectType.molecule:
       return molecule(
         deserialize(serialized),
         Object.keys(v as object).map((key) =>
           atom(key, (v as Record<string, unknown>)[key])
         ),
+        versionstamp,
       ) as T | null;
     default:
       throw new AssertionError("Unknown type");
@@ -42,13 +48,23 @@ const persist = async (...items: Array<AnyAtom | Molecule>) => {
   items.forEach((item) => {
     if (isAtom(item)) {
       store.set(item.name, {
-        t: ObjectType.atom,
-        v: item.value,
+        metadata: {
+          versionstamp: ulid.fromTime(Date.now()),
+        },
+        value: {
+          t: ObjectType.atom,
+          v: item.value,
+        },
       });
     } else if (isMolecule(item)) {
       store.set(serialize(item.identity), {
-        t: ObjectType.molecule,
-        v: item.serialize(),
+        metadata: {
+          versionstamp: ulid.fromTime(Date.now()),
+        },
+        value: {
+          t: ObjectType.molecule,
+          v: item.serialize(),
+        },
       });
     } else {
       throw new AssertionError("Unknown type");
@@ -56,7 +72,9 @@ const persist = async (...items: Array<AnyAtom | Molecule>) => {
   });
 };
 
-export const memory: NaturalRepo & { store: Map<string, StoredItem> } = {
+export const memory: NaturalRepo & {
+  store: Map<string, { metadata: { versionstamp: string }; value: StoredItem }>;
+} = {
   restore,
   persist,
   store,
