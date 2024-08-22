@@ -39,7 +39,7 @@ export function identity(...items: IdentityItem[]): IdentityInstance {
     },
     compact(otherIdent: Identity): IdentityInstance {
       return identity(...compact(this, otherIdent).key);
-    }
+    },
   };
 }
 
@@ -65,7 +65,7 @@ export const combine = (
 // Removes common part of identity keys - for storing molecules children
 export const compact = (
   origin: Identity,
-  toCompact: Identity
+  toCompact: Identity,
 ): Identity => {
   const compactedKey: IdentityItem[] = [];
 

@@ -59,7 +59,7 @@ Deno.test("identity.deserialize", () => {
 
 Deno.test("identity.compact", () => {
   const myIdentity = id.identity("a", "b");
-  const myChildIdentity = myIdentity.child('c', 'd');
+  const myChildIdentity = myIdentity.child("c", "d");
   const compacted = myIdentity.compact(myChildIdentity);
   assertEquals(compacted.serialize(), "identity::c:d", "compact works");
 });
