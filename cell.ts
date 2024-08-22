@@ -190,8 +190,9 @@ export const cell = <S>(
       status.mutate(CellStatus.finished);
     }
 
+    const serialized = state.serialize();
     await runtime.repository.persist(state);
 
-    return state;
+    return serialized;
   };
 };

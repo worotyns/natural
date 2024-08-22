@@ -1,4 +1,4 @@
-import { assert } from "./utils.ts";
+import { assert } from "../utils.ts";
 
 // Function to check if a specific role has permission
 export function has(permissions: number, role: number) {
@@ -15,6 +15,7 @@ export function revoke(permissions: number, role: number) {
   return permissions & ~role;
 }
 
+// Function to check if any role has permission
 export function or(
   permission: number,
   ...roles: (number | boolean)[]
@@ -31,6 +32,7 @@ export function or(
   return false;
 }
 
+// Function to check if all roles have permission
 export function and(
   permission: number,
   ...roles: (number | boolean)[]
@@ -47,10 +49,12 @@ export function and(
   return true;
 }
 
+// Function to combine roles
 export function combine(...roles: number[]): number {
   return roles.reduce((a, b) => a | b);
 }
 
+// Function to create flags (bitwise operations)
 export function flags<T>(definitions: T): Map<T[keyof T], number> {
   assert(Array.isArray(definitions), "Definitions must be an array");
   assert(

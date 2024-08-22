@@ -1,12 +1,15 @@
 import type { AnyActivity, AnyActivityData } from "./activity.ts";
 import type { AnyAtom } from "./atom.ts";
-import type { Identity } from "./identifier.ts";
+import type { Identity, IdentityItem } from "./identifier.ts";
 import type { Molecule } from "./molecule.ts";
 import type { Ulid } from "./utils.ts";
 
 export type NaturalRepo = {
   persist: (...items: Array<AnyAtom | Molecule>) => Promise<void>;
-  restore: <T = unknown>(identifier: Identity) => Promise<T | null>;
+  restore: <T = unknown>(
+    identifier: Identity,
+    partialAtoms?: IdentityItem[],
+  ) => Promise<T | null>;
 };
 
 export type ActivityRepo = {

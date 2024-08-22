@@ -9,7 +9,7 @@ export type AnyActivityData = ActivityData<string, Record<string, any>>;
 export type Activity<K, P> = {
   identity: Identity;
   value: ActivityData<K, P>;
-}
+};
 
 export type ActivityData<K, P> = {
   k: K;
@@ -17,7 +17,10 @@ export type ActivityData<K, P> = {
   t: number;
 };
 
-export function activity<K = string, P = Record<string, unknown>>(type: K, payload: P): Activity<K, P> {
+export function activity<K = string, P = Record<string, unknown>>(
+  type: K,
+  payload: P,
+): Activity<K, P> {
   const identity = ulid.new();
   return {
     identity: ["activity", identity],
@@ -25,6 +28,6 @@ export function activity<K = string, P = Record<string, unknown>>(type: K, paylo
       k: type,
       v: payload,
       t: ulid.getTime(identity),
-    }
-  }
+    },
+  };
 }

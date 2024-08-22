@@ -31,3 +31,10 @@ Deno.test("molecule", async () => {
   assertEquals(name.wasModified(), true);
   assertEquals(restored.wasModified(), true);
 });
+
+Deno.test("molecule.partialyRestored", async () => {
+  const mymol = molecule(["users", "jane@email.com"]);
+  moMol.addAtom("name", "Jane");
+  mymol.atom("name").mutate();
+  mymol.atoms("name", "age").map((i) => i.mutate());
+});

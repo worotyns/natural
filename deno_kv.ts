@@ -4,7 +4,7 @@ import { type Identity, serialize } from "./identifier.ts";
 import { isMolecule, type Molecule, molecule } from "./molecule.ts";
 import type { ActivityRepo, NaturalRepo } from "./runtime.ts";
 import type { AnyActivity, AnyActivityData } from "./activity.ts";
-import { assert, ulid, type Ulid } from "./utils.ts";
+import { assert, type Ulid } from "./utils.ts";
 
 type StoredItem = { t: number; v: unknown };
 
@@ -104,14 +104,16 @@ const add = async (...items: Array<AnyActivity>) => {
 };
 
 const scan = async (rawUlid: Ulid | Identity) => {
-  const activity: AnyActivityData[] = []
+  const activity: AnyActivityData[] = [];
   const startFrom = Array.isArray(rawUlid) ? rawUlid.at(1)! : rawUlid;
-  assert(startFrom, 'startFrom is not defined');
+  assert(startFrom, "startFrom is not defined");
 
-  for await (const item of db.list<AnyActivityData>({ 
-    prefix: ["activity"], 
-    start: ["activity", startFrom] 
-  })) { 
+  for await (
+    const item of db.list<AnyActivityData>({
+      prefix: ["activity"],
+      start: ["activity", startFrom],
+    })
+  ) {
     activity.push({
       k: item.value.k,
       t: item.value.t,

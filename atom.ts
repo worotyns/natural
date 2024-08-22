@@ -1,3 +1,4 @@
+import { RuntimeError } from "./errors.ts";
 import type { Identity, IdentityItem } from "./identifier.ts";
 
 export type Atom<T = unknown> = {
@@ -5,6 +6,7 @@ export type Atom<T = unknown> = {
   value: T;
   version: string;
   identity: Identity;
+  wasPersisted: boolean;
   wasModified(): boolean;
   mutate(newValue: T): void;
 };
@@ -19,18 +21,24 @@ export const atom = <T = unknown>(
   version = "",
 ): AnyAtom => {
   const prevValues: T[] = [];
-  const [joinedName, identity] = Array.isArray(name)
-    ? [name.join(":"), name]
+  const [key, identity] = Array.isArray(name)
+    ? [name[name.length - 1], name]
     : [name, [name]];
   return {
-    name: joinedName,
+    name: key,
     value,
     version,
     identity: identity,
+    wasPersisted: false,
     wasModified() {
       return prevValues.length > 0 && !prevValues.includes(value);
     },
     mutate(newVal: T): void {
+      if (this.wasPersisted) {
+        throw new RuntimeError(
+          "Cannot persist once persisted atom, restore first and then persist again",
+        );
+      }
       prevValues.push(newVal);
       this.value = newVal;
     },

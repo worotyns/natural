@@ -27,3 +27,11 @@ Deno.test("atom", async () => {
   restored.mutate(["as", "sa"]);
   assertEquals(restored.wasModified(), true);
 });
+
+Deno.test("atom with identity", () => {
+  const sample = atom<string>(["sample", "xxx", "name"], "john");
+  assertEquals(sample.name, "name");
+  assertEquals(sample.value, "john");
+  assertEquals(sample.version, "");
+  assertEquals(sample.identity, ["sample", "xxx", "name"]);
+});

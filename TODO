@@ -1,0 +1,32 @@
+// atomy musza byc koniecznie zapisywane osobno
+// w przypadku restore molecule, trzeba by dodac pola o jakie requestujemy, jak ich nie ma, to wtedy brac wszystko
+// atomy moga miec kolekcje i te kolekcje tez musza byc "nested" zapisywane osobno i jakos serializowac je trzeba zeby byly realne do odczytu
+// w przypadku jak molecule aktualizuje jakis atom, to zawsze szanujemy wersje i nie realizujemy calej transakcji
+// idealnie by bylo miec interface na molecule, ale nie wiem czy to sie uda zaimplementowac, dosc trudny case
+
+// persist - musi zwracac "nowy obiekt" zeby dalo sie dalej pracowac
+// albo pozbyc sie tych raków, ktore nie chcemy zapisywac
+
+// set ma commitresult, wiec mozna spokojnie to ograc
+// deepClone trzeba robic i na podstawie tego "zapisywac"
+// pozniej aktualizowac wersje czy cos takiego
+
+// w ogole to od nowa mozna napisac teraz ten "organism" tak mi sie wydaje i molecule
+
+// serializacje wartosci atomu i deserializacje dac obok, zeby repa nie mialy tego inside
+
+// wtedy bede mial tylko store i restore - testy moge zrobic bez repositories, bo obecnie to rak
+
+// atom - najwazniejsza czesc, tutaj trzeba wsadzic 99% kodu
+// molecule, organism - to tylko organizacja atomow
+// cell - to tak naprawde atom?
+
+// atom - basic primitive, can be simple value, can me complex serializable object
+
+// in main library mod.ts export only "organism" and done
+// memory
+// kv
+
+// w teorii atom musi sie umiec zserializowac
+// w teorii molecule musi sie umiec zserializowac
+// w teorii powinnienem zrobic "soft" warstwe transakcji tj. commit log jaki bedzie szedl na persistence

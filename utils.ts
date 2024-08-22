@@ -1,5 +1,5 @@
 import { AssertionError, type CoreError } from "./errors.ts";
-import { decodeTime, monotonicUlid, baseUlid, sprintf } from "./deps.ts";
+import { baseUlid, decodeTime, monotonicUlid, sprintf } from "./deps.ts";
 
 export function assert(
   expr: unknown,
@@ -43,5 +43,5 @@ export const ulid = {
     const START_OF_EPOCH = new Date(1);
     const UNIX_EPOCH_START_DATE = ulid.fromDate(START_OF_EPOCH);
     return UNIX_EPOCH_START_DATE;
-  }
+  },
 };

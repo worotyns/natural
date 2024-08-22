@@ -1,5 +1,5 @@
 import { sprintf } from "../deps.ts";
-import { type Runtime, memory, memory_activity } from "../mod.ts";
+import { memory, memory_activity, type Runtime } from "../mod.ts";
 
 const services = {
   email(email: string, subject: string, body: string): Promise<void> {
