@@ -1,16 +1,17 @@
 import { activity } from "./activity.ts";
 import { assertEquals } from "./testing.ts";
-import { createMemory } from "./memory.ts";
+import { memoryRuntime } from "./runtime.ts";
+import { createRepository } from "./repository.ts";
 
 Deno.test("activity", async () => {
-  const testing = createMemory();
+  const testing = createRepository(memoryRuntime);
 
   const a = activity("user-created", { uid: ["users", "jane@email.com"] });
   const b = activity("user-created", { uid: ["users", "jane1@email.com"] });
 
-  await testing.activity.add(a, b);
+  await testing.log.add(a, b);
 
-  const result = await testing.activity.scan(a.identity);
+  const result = await testing.log.scan(a.identity);
 
   assertEquals(
     result,

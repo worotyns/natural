@@ -50,8 +50,9 @@ export type SerializedAtomWithReferences = {
 
 export type SerializedAtom = {
   i: IdentitySerialized;
-  k: PrimitiveValue;
+  k: PrimitiveKind;
   v: Primitive;
+  t: PrimitiveValue;
 };
 
 // base atom interface that allows mutation and persistence
@@ -96,7 +97,7 @@ export function atom<V, K extends PrimitiveValue, H extends BaseAtomHelpers<V>>(
           "Cannot persist without an molecule, create atom from molecule first. Then you will able to use .persist() on atom.",
         );
       }
-      const [response] = await molecule.runtime.repository.persist(this);
+      const [response] = await molecule.runtime.atoms.persist(this);
       this.version = response.versionstamp;
     },
     // async archive() {
@@ -137,8 +138,9 @@ export function string(
         return {
           [this.identity.serialize()]: {
             i: this.identity.serialize(),
-            k: this.valueKind,
+            t: this.valueKind,
             v: this.valueOf(),
+            k: this.kind,
           },
         };
       },
@@ -179,8 +181,9 @@ export function number(
         return {
           [this.identity.serialize()]: {
             i: this.identity.serialize(),
-            k: this.valueKind,
+            t: this.valueKind,
             v: this.valueOf(),
+            k: this.kind,
           },
         };
       },
@@ -225,8 +228,9 @@ export function boolean(
         return {
           [this.identity.serialize()]: {
             i: this.identity.serialize(),
-            k: this.valueKind,
+            t: this.valueKind,
             v: this.valueOf(),
+            k: this.kind,
           },
         };
       },
@@ -272,8 +276,9 @@ export function date(
         return {
           [this.identity.serialize()]: {
             i: this.identity.serialize(),
-            k: this.valueKind,
+            t: this.valueKind,
             v: this.valueOf().toISOString(),
+            k: this.kind,
           },
         };
       },
@@ -312,8 +317,9 @@ export function object(
         return {
           [this.identity.serialize()]: {
             i: this.identity.serialize(),
-            k: this.valueKind,
+            t: this.valueKind,
             v: this.valueOf(),
+            k: this.kind,
           },
         };
       },
@@ -355,8 +361,9 @@ export function list(
         return {
           [this.identity.serialize()]: {
             i: this.identity.serialize(),
-            k: this.valueKind,
+            t: this.valueKind,
             v: this.valueOf(),
+            k: this.kind,
           },
         };
       },
@@ -377,7 +384,7 @@ export type CollectionAtom =
 
 // interface of collection atom with all helpers
 interface CollectionAtomHelpers extends BaseAtomHelpers<AtomCollection> {
-  add(atom: AnyAtom): void
+  add(atom: AnyAtom): void;
 }
 
 // atom collection, guards and other helpers
@@ -417,8 +424,9 @@ export function collection(
           ...references,
           [this.identity.serialize()]: {
             i: this.identity.serialize(),
-            k: this.valueKind,
+            t: this.valueKind,
             v: Object.keys(references),
+            k: this.kind,
           },
         };
       },
@@ -492,7 +500,8 @@ export function map(
           }, {} as Record<string, SerializedAtom>),
           [this.identity.serialize()]: {
             i: this.identity.serialize(),
-            k: this.valueKind,
+            t: this.valueKind,
+            k: this.kind,
             v: Object.keys(references).reduce((res, val) => {
               res[val] = references[val].i;
               return res;

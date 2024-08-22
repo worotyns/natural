@@ -6,15 +6,16 @@ import {
   type IdentityItem,
 } from "./identity.ts";
 import type { AnyAtom } from "./atom.ts";
-import type { CommitResultMessage, Runtime } from "./repository.ts";
+import type { CommitResultMessage, Repository } from "./repository.ts";
 import { AssertionError } from "./errors.ts";
-import { createMemory } from "./memory.ts";
+import { createRepository } from "./repository.ts";
 import { PrimitiveKind, PrimitiveValue } from "./primitive.ts";
+import { memoryRuntime } from "./runtime.ts";
 
 export type Molecule = {
   kind: PrimitiveKind.Molecule;
   identity: IdentityInstance;
-  runtime: Runtime;
+  runtime: Repository;
   named: atom.MapAtom;
   loose: atom.CollectionAtom;
   version: atom.Versionstamp;
@@ -34,27 +35,35 @@ export type Molecule = {
   use(...names: string[]): AnyAtom[];
 };
 
-// for testing purposes
+// for testing purposes or empheral use
 export function temporary(...name: IdentityItem[]): Molecule {
-  return molecule(createMemory(), ...name);
+  return molecule(createRepository(memoryRuntime), ...name);
 }
 
-// for production purposes
+// for production purposes - with durable store
 export function persistent(...name: IdentityItem[]): Molecule {
   // TODO: add deno kv
-  return molecule(createMemory(), ...name);
+  return molecule(createRepository(memoryRuntime), ...name);
 }
 
-// base molecule item
-export function molecule(runtime: Runtime, ...name: IdentityItem[]): Molecule {
+// base molecule item can be used with runtime, must be named before use
+export function molecule(
+  runtime: Repository,
+  ...name: IdentityItem[]
+): Molecule {
   const identity = createIdentity(...name);
   const named = atom.map({}, identity.child("mol", "named"));
   const loose = atom.collection([], identity.child("mol", "loose"));
-  // deno-lint-ignore ban-types
-  const create = (name: IdentityItem | undefined, factory: Function, value: unknown, mol: Molecule) => {
+  const create = (
+    name: IdentityItem | undefined,
+    // deno-lint-ignore ban-types
+    factory: Function,
+    value: unknown,
+    mol: Molecule,
+  ) => {
     const isNamed = !!name;
     name = name || ulid.new();
-    const newAtom = factory(value, identity.child('atoms', name), mol);
+    const newAtom = factory(value, identity.child("atoms", name), mol);
     isNamed ? named.set(name, newAtom) : loose.add(newAtom);
     return newAtom;
   };
@@ -78,37 +87,38 @@ export function molecule(runtime: Runtime, ...name: IdentityItem[]): Molecule {
             loose: this.loose.identity.serialize(),
             named: this.named.identity.serialize(),
           },
-          k: PrimitiveValue.Map
-        }
-      }
+          t: PrimitiveValue.Map,
+          k: this.kind,
+        },
+      };
     },
     string(value: string, name?: IdentityItem) {
-      return create(name, atom.string, value, this)
+      return create(name, atom.string, value, this);
     },
     number(value: number, name?: IdentityItem) {
-      return create(name, atom.number, value, this)
+      return create(name, atom.number, value, this);
     },
     boolean(value: boolean, name?: IdentityItem) {
-      return create(name, atom.boolean, value, this)
+      return create(name, atom.boolean, value, this);
     },
     date(value: Date, name?: IdentityItem) {
-      return create(name, atom.date, value, this)
+      return create(name, atom.date, value, this);
     },
     list(value: atom.PrimitiveList, name?: IdentityItem) {
-      return create(name, atom.list, value, this)
+      return create(name, atom.list, value, this);
     },
     collection(value: atom.AtomCollection, name?: IdentityItem) {
-      return create(name, atom.collection, value, this)
+      return create(name, atom.collection, value, this);
     },
     map(value: atom.AtomMap, name?: IdentityItem) {
-      return create(name, atom.map, value, this)
+      return create(name, atom.map, value, this);
     },
     persist(): Promise<CommitResultMessage[]> {
-      return runtime.repository.persist(this);
+      return runtime.atoms.persist(this);
     },
     async restore(): Promise<Molecule> {
-      const mol = await runtime.repository.restore(this.identity);
-      console.log({mol});
+      // TODO :FIX
+      const mol = await runtime.atoms.restore(this.identity);
       return molecule(runtime, ...identity.key);
     },
     use(...names: string[]) {
@@ -125,8 +135,3 @@ export function molecule(runtime: Runtime, ...name: IdentityItem[]): Molecule {
     },
   };
 }
-
-// for production purposes based on deno kv
-// export function durable() {
-
-// }

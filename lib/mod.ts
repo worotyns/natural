@@ -1,5 +1,6 @@
 // export * from "./kv.ts";
-export { createMemory } from "./memory.ts";
+export { createRepository } from "./repository.ts";
+export { memoryRuntime, type Runtime } from "./runtime.ts";
 export { molecule, persistent, temporary } from "./molecule.ts";
 export { identity } from "./identity.ts";
 export { type Activity, activity, type ActivityData } from "./activity.ts";
