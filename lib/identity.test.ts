@@ -1,4 +1,4 @@
-import { assert, assertEquals } from "../deps.ts";
+import { assert, assertEquals } from "./testing.ts";
 import * as id from "./identity.ts";
 import { PrimitiveKind } from "./primitive.ts";
 

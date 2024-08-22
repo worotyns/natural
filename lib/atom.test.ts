@@ -1,4 +1,4 @@
-import { assertEquals } from "../deps.ts";
+import { assertEquals } from "./testing.ts";
 import * as atom from "./atom.ts";
 import { identity } from "./identity.ts";
 import { PrimitiveValue } from "./primitive.ts";

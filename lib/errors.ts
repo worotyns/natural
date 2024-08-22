@@ -1,4 +1,4 @@
-import { sprintf } from "./deps.ts";
+import { sprintf } from "./utils.ts";
 
 class CoreError extends Error {
   name = "CoreError";

@@ -1,5 +1,5 @@
 import { atom } from "../atom.ts";
-import { organism } from "../mod.ts";
+import { organism } from "../lib/mod.ts";
 import type { Molecule } from "../molecule.ts";
 import { testing } from "./testing.ts";
 

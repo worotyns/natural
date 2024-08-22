@@ -1,6 +1,6 @@
 import { activity } from "./activity.ts";
-import { assertEquals } from "./deps.ts";
-import { testing } from "./example/testing.ts";
+import { assertEquals } from "./testing.ts";
+import { testing } from "../example/testing.ts";
 
 Deno.test("activity", async () => {
   const a = activity("user-created", { uid: ["users", "jane@email.com"] });

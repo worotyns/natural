@@ -1,6 +1,6 @@
-import { RuntimeError } from "../errors.ts";
+import { RuntimeError } from "./errors.ts";
 import type { IdentityInstance, IdentitySerialized } from "./identity.ts";
-import { Organism } from "./organism.ts";
+import type { Molecule } from "./molecule.ts";
 import { PrimitiveKind, PrimitiveValue } from "./primitive.ts";
 
 // sortable and equalable string
@@ -71,7 +71,7 @@ type BaseOrganismHelpers = {
   // should be used only when persisting single instance of atom
   // in case of a molecule, should be used persist on molecule due to different transaction level
   persist(): Promise<void>;
-  archive(): Promise<void>;
+  // archive(): Promise<void>;
 };
 
 // raw atom implementation
@@ -81,7 +81,7 @@ export function atom<V, K extends PrimitiveValue, H extends BaseAtomHelpers<V>>(
   identity: IdentityInstance,
   version: Versionstamp,
   helpers: H,
-  organism?: Organism,
+  molecule?: Molecule,
 ): Atom<V, K> & H & BaseOrganismHelpers {
   return {
     ...helpers,
@@ -91,19 +91,19 @@ export function atom<V, K extends PrimitiveValue, H extends BaseAtomHelpers<V>>(
     value: value,
     version: version,
     async persist() {
-      if (!organism) {
-        throw new RuntimeError('Cannot persist without an organism, create atom from organism first. Then you will able to use .persist() on atom.');
+      if (!molecule) {
+        throw new RuntimeError('Cannot persist without an molecule, create atom from molecule first. Then you will able to use .persist() on atom.');
       }
-      const [response] = await organism.repository.persist(this);
+      const [response] = await molecule.runtime.repository.persist(this);
       this.version = response.versionstamp;
     },
-    async archive() {
-      if (!organism) {
-        throw new RuntimeError('Cannot archive without an organism, create atom from organism first. Then you will able to use .persist() on atom.');
-      }
-      const [response] = await organism.repository.archive(this);
-      this.version = response.versionstamp;
-    }
+    // async archive() {
+    //   if (!molecule) {
+    //     throw new RuntimeError('Cannot archive without an molecule, create atom from molecule first. Then you will able to use .persist() on atom.');
+    //   }
+    //   const [response] = await molecule.repository.archive(this);
+    //   this.version = response.versionstamp;
+    // }
   };
 }
 
@@ -119,7 +119,7 @@ export type StringAtom =
 export function string(
   value: string,
   identity: IdentityInstance,
-  organism?: Organism,
+  molecule?: Molecule,
 ): StringAtom {
   return atom<string, PrimitiveValue.String, StringAtomHelpers>(
     value,
@@ -159,7 +159,7 @@ interface NumberAtomHelpers extends BaseAtomHelpers<number> {}
 export function number(
   value: number,
   identity: IdentityInstance,
-  organism?: Organism,
+  molecule?: Molecule,
 ): NumberAtom {
   return atom<number, PrimitiveValue.Number, NumberAtomHelpers>(
     value,
@@ -203,7 +203,7 @@ interface BooleanAtomHelpers extends BaseAtomHelpers<boolean> {
 export function boolean(
   value: boolean,
   identity: IdentityInstance,
-  organism?: Organism,
+  molecule?: Molecule,
 ): BooleanAtom {
   return atom<boolean, PrimitiveValue.Boolean, BooleanAtomHelpers>(
     value,
@@ -249,7 +249,7 @@ export type DateAtom = Atom<Date, PrimitiveValue.Date> & DateAtomHelpers;
 export function date(
   value: Date,
   identity: IdentityInstance,
-  organism?: Organism,
+  molecule?: Molecule,
 ): DateAtom {
   return atom<Date, PrimitiveValue.Date, DateAtomHelpers>(
     value,
@@ -288,7 +288,7 @@ export type ObjectAtom =
 export function object(
   value: PrimitiveObject,
   identity: IdentityInstance,
-  organism?: Organism,
+  molecule?: Molecule,
 ): ObjectAtom {
   return atom<PrimitiveObject, PrimitiveValue.Object, ObjectAtomHelpers>(
     value,
@@ -329,7 +329,7 @@ interface ListAtomHelpers extends BaseAtomHelpers<PrimitiveList> {
 export function list(
   value: PrimitiveList,
   identity: IdentityInstance,
-  organism?: Organism,
+  molecule?: Molecule,
 ): ListAtom {
   return atom<PrimitiveList, PrimitiveValue.List, ListAtomHelpers>(
     value,
@@ -370,7 +370,7 @@ interface CollectionAtomHelpers extends BaseAtomHelpers<AtomCollection> {
 export function collection(
   value: AtomCollection,
   identity: IdentityInstance,
-  organism?: Organism,
+  molecule?: Molecule,
 ): CollectionAtom {
   return atom<AtomCollection, PrimitiveValue.Collection, CollectionAtomHelpers>(
     value,
@@ -430,7 +430,7 @@ interface MapAtomHelpers extends BaseAtomHelpers<AtomMap> {
 export function map(
   value: AtomMap,
   identity: IdentityInstance,
-  organism?: Organism,
+  molecule?: Molecule,
 ): MapAtom {
   return atom<AtomMap, PrimitiveValue.Map, MapAtomHelpers>(
     value,

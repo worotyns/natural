@@ -1,10 +1,10 @@
-import { AssertionError } from "./errors.ts";
+import { AssertionError } from "./lib/errors.ts";
 import { type AnyAtom, atom, isAtom } from "./atom.ts";
 import { type Identity, serialize } from "./identifier.ts";
 import { isMolecule, type Molecule, molecule } from "./molecule.ts";
 import type { ActivityRepo, NaturalRepo } from "./runtime.ts";
-import type { AnyActivity, AnyActivityData } from "./activity.ts";
-import { assert, type Ulid } from "./utils.ts";
+import type { AnyActivity, AnyActivityData } from "./lib/activity.ts";
+import { assert, type Ulid } from "./lib/utils.ts";
 
 type StoredItem = { t: number; v: unknown };
 

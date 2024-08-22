@@ -4,11 +4,9 @@ Wrapper around deno KV to build elastic entities.
 
 Idea:
 
-- atom - primitive
-- molecule - entity (build of atoms)
-- cell - long living durable process
-- organism - namespace for data
-- runtime - contains services and repository
+- atom - primitive (can be persisted, restored)
+- molecule - namespace (aggregator for atoms, can create new atoms)
+- cell - long living durable process can use molecules and atoms inside
 
 You can store simple atom, or molecule. Mutate them, use it in cells.
 

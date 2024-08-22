@@ -1,5 +1,5 @@
-import type { Identity } from "./identifier.ts";
-import { ulid } from "./utils.ts";
+import { identity, type IdentityInstance } from "./identity.ts";
+import { ulid } from "./ulid.ts";
 
 // deno-lint-ignore no-explicit-any
 export type AnyActivity = Activity<string, Record<string, any>>;
@@ -7,7 +7,7 @@ export type AnyActivity = Activity<string, Record<string, any>>;
 export type AnyActivityData = ActivityData<string, Record<string, any>>;
 
 export type Activity<K, P> = {
-  identity: Identity;
+  identity: IdentityInstance;
   value: ActivityData<K, P>;
 };
 
@@ -17,17 +17,18 @@ export type ActivityData<K, P> = {
   t: number;
 };
 
+// activity log item - for activity append log storage
 export function activity<K = string, P = Record<string, unknown>>(
   type: K,
   payload: P,
 ): Activity<K, P> {
-  const identity = ulid.new();
+  const uniqueUlid = ulid.new();
   return {
-    identity: ["activity", identity],
+    identity: identity("activity", uniqueUlid),
     value: {
       k: type,
       v: payload,
-      t: ulid.getTime(identity),
+      t: ulid.getTime(uniqueUlid),
     },
   };
 }

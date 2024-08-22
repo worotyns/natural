@@ -1,4 +1,4 @@
-import { assertEquals } from "./deps.ts";
+import { assertEquals } from "./testing.ts";
 import { InvalidStateError } from "./errors.ts";
 
 Deno.test("error format", () => {

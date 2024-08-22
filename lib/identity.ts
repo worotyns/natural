@@ -1,4 +1,4 @@
-import { AssertionError } from "../errors.ts";
+import { AssertionError } from "./errors.ts";
 import { PrimitiveKind } from "./primitive.ts";
 
 export type IdentitySerialized = string;
