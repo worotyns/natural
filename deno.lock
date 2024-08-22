@@ -5,8 +5,7 @@
       "jsr:@std/assert@^1.0.2": "jsr:@std/assert@1.0.2",
       "jsr:@std/fmt@^1.0.0": "jsr:@std/fmt@1.0.0",
       "jsr:@std/internal@^1.0.1": "jsr:@std/internal@1.0.1",
-      "jsr:@std/ulid@^1.0.0": "jsr:@std/ulid@1.0.0",
-      "jsr:@valibot/valibot@^0.37.0": "jsr:@valibot/valibot@0.37.0"
+      "jsr:@std/ulid@^1.0.0": "jsr:@std/ulid@1.0.0"
     },
     "jsr": {
       "@std/assert@1.0.2": {
@@ -23,9 +22,6 @@
       },
       "@std/ulid@1.0.0": {
         "integrity": "d41c3d27a907714413649fee864b7cde8d42ee68437d22b79d5de4f81d808780"
-      },
-      "@valibot/valibot@0.37.0": {
-        "integrity": "ae604b714f14c79d61d6887d5a48ab43d570dc4706075c58f1c6d25abf242443"
       }
     }
   },
@@ -72,8 +68,7 @@
       "jsr:@std/assert@^1.0.2",
       "jsr:@std/async@^1.0.3",
       "jsr:@std/fmt@^1.0.0",
-      "jsr:@std/ulid@^1.0.0",
-      "jsr:@valibot/valibot@^0.37.0"
+      "jsr:@std/ulid@^1.0.0"
     ]
   }
 }

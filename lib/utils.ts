@@ -11,6 +11,4 @@ export const measure = () => {
   };
 };
 
-export {
-  sprintf
-}
+export { sprintf };

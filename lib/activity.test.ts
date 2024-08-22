@@ -1,8 +1,10 @@
 import { activity } from "./activity.ts";
 import { assertEquals } from "./testing.ts";
-import { testing } from "../example/testing.ts";
+import { createMemory } from "./memory.ts";
 
 Deno.test("activity", async () => {
+  const testing = createMemory();
+
   const a = activity("user-created", { uid: ["users", "jane@email.com"] });
   const b = activity("user-created", { uid: ["users", "jane1@email.com"] });
 

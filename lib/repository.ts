@@ -12,7 +12,9 @@ export type IdentifiableAndValuedOfAndKindPrimitive = {
 };
 
 export type NaturalRepo = {
-  persist: (...items: Array<AnyAtom | Molecule>) => Promise<CommitResultMessage[]>;
+  persist: (
+    ...items: Array<AnyAtom | Molecule>
+  ) => Promise<CommitResultMessage[]>;
   restore: <T = unknown>(
     identifier: IdentityInstance,
     partialAtoms?: IdentityItem[],
@@ -27,6 +29,6 @@ export type ActivityRepo = {
 export type Runtime = {
   repository: NaturalRepo;
   activity: ActivityRepo;
-}
+};
 
 export type CommitResultMessage = { status: boolean; versionstamp: string };

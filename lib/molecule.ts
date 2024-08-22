@@ -1,15 +1,20 @@
 import { ulid } from "./ulid.ts";
 import * as atom from "./atom.ts";
-import { identity as createIdentity, type IdentityInstance, type IdentityItem } from "./identity.ts";
+import {
+  identity as createIdentity,
+  type IdentityInstance,
+  type IdentityItem,
+} from "./identity.ts";
 import type { AnyAtom } from "./atom.ts";
 import type { CommitResultMessage, Runtime } from "./repository.ts";
 import { AssertionError } from "./errors.ts";
+import { createMemory } from "./memory.ts";
 
 export type Molecule = {
   identity: IdentityInstance;
-  runtime: Runtime,
-  named: atom.MapAtom,
-  loose: atom.CollectionAtom,
+  runtime: Runtime;
+  named: atom.MapAtom;
+  loose: atom.CollectionAtom;
   string(value: string, name?: IdentityItem): atom.StringAtom;
   number(value: number, name?: IdentityItem): atom.NumberAtom;
   boolean(value: boolean, name?: IdentityItem): atom.BooleanAtom;
@@ -26,22 +31,24 @@ export type Molecule = {
 };
 
 // for testing purposes
-export function memory(...name: IdentityItem[]): Molecule {
-  
-  return molecule({
-    activity: {},
-    repository: {},
-  }, ...name)
+export function stateless(...name: IdentityItem[]): Molecule {
+  return molecule(createMemory(), ...name);
+}
+
+// for production purposes
+export function statefull(...name: IdentityItem[]): Molecule {
+  // TODO: add deno kv
+  return molecule(createMemory(), ...name);
 }
 
 // base molecule item
-function molecule(runtime: Runtime, ...name: IdentityItem[]): Molecule {
+export function molecule(runtime: Runtime, ...name: IdentityItem[]): Molecule {
   const identity = createIdentity(...name);
   return {
     identity,
     runtime,
-    named: atom.map({}, identity.child('named')),
-    loose: atom.collection([], identity.child('loose')),
+    named: atom.map({}, identity.child("named")),
+    loose: atom.collection([], identity.child("loose")),
     string(value: string, name: IdentityItem = ulid.new()) {
       const newAtom = atom.string(value, identity.child(name));
       // atoms.(newAtom);
@@ -81,7 +88,7 @@ function molecule(runtime: Runtime, ...name: IdentityItem[]): Molecule {
       return runtime.repository.persist(this);
     },
     async restore(identity: IdentityInstance) {
-      throw new Error('not implementd')
+      throw new Error("not implementd");
       // return molecule(runtime, ...identity.key);
     },
     use(...names: string[]) {

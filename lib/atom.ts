@@ -92,7 +92,9 @@ export function atom<V, K extends PrimitiveValue, H extends BaseAtomHelpers<V>>(
     version: version,
     async persist() {
       if (!molecule) {
-        throw new RuntimeError('Cannot persist without an molecule, create atom from molecule first. Then you will able to use .persist() on atom.');
+        throw new RuntimeError(
+          "Cannot persist without an molecule, create atom from molecule first. Then you will able to use .persist() on atom.",
+        );
       }
       const [response] = await molecule.runtime.repository.persist(this);
       this.version = response.versionstamp;
