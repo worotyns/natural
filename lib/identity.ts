@@ -17,12 +17,18 @@ export type IdentityHelpers = {
   child: (...identityItems: IdentityItem[]) => IdentityInstance;
   compact: (identity: Identity) => IdentityInstance;
   serialize: () => IdentitySerialized;
+  [Symbol.iterator](): Generator<IdentityItem>;
 };
 
 export type IdentityInstance = Identity & IdentityHelpers;
 
 export function identity(...items: IdentityItem[]): IdentityInstance {
   return {
+    *[Symbol.iterator]() {
+      for (const item of this.key) {
+        yield item;
+      }
+    },
     key: items,
     kind: PrimitiveKind.Identity,
     equals(toEqual: Identity) {

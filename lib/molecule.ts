@@ -9,12 +9,16 @@ import type { AnyAtom } from "./atom.ts";
 import type { CommitResultMessage, Runtime } from "./repository.ts";
 import { AssertionError } from "./errors.ts";
 import { createMemory } from "./memory.ts";
+import { PrimitiveKind, PrimitiveValue } from "./primitive.ts";
 
 export type Molecule = {
+  kind: PrimitiveKind.Molecule;
   identity: IdentityInstance;
   runtime: Runtime;
   named: atom.MapAtom;
   loose: atom.CollectionAtom;
+  version: atom.Versionstamp;
+  serialize(): atom.SerializedAtomWithReferences;
   string(value: string, name?: IdentityItem): atom.StringAtom;
   number(value: number, name?: IdentityItem): atom.NumberAtom;
   boolean(value: boolean, name?: IdentityItem): atom.BooleanAtom;
@@ -26,17 +30,17 @@ export type Molecule = {
   ): atom.CollectionAtom;
   map(value: atom.AtomMap, name?: IdentityItem): atom.MapAtom;
   persist: () => Promise<CommitResultMessage[]>;
-  restore: (identity: IdentityInstance) => Promise<Molecule>;
+  restore: () => Promise<Molecule>;
   use(...names: string[]): AnyAtom[];
 };
 
 // for testing purposes
-export function stateless(...name: IdentityItem[]): Molecule {
+export function temporary(...name: IdentityItem[]): Molecule {
   return molecule(createMemory(), ...name);
 }
 
 // for production purposes
-export function statefull(...name: IdentityItem[]): Molecule {
+export function persistent(...name: IdentityItem[]): Molecule {
   // TODO: add deno kv
   return molecule(createMemory(), ...name);
 }
@@ -44,52 +48,68 @@ export function statefull(...name: IdentityItem[]): Molecule {
 // base molecule item
 export function molecule(runtime: Runtime, ...name: IdentityItem[]): Molecule {
   const identity = createIdentity(...name);
+  const named = atom.map({}, identity.child("mol", "named"));
+  const loose = atom.collection([], identity.child("mol", "loose"));
+  // deno-lint-ignore ban-types
+  const create = (name: IdentityItem | undefined, factory: Function, value: unknown, mol: Molecule) => {
+    const isNamed = !!name;
+    name = name || ulid.new();
+    const newAtom = factory(value, identity.child('atoms', name), mol);
+    isNamed ? named.set(name, newAtom) : loose.add(newAtom);
+    return newAtom;
+  };
+
   return {
+    kind: PrimitiveKind.Molecule,
     identity,
     runtime,
-    named: atom.map({}, identity.child("named")),
-    loose: atom.collection([], identity.child("loose")),
-    string(value: string, name: IdentityItem = ulid.new()) {
-      const newAtom = atom.string(value, identity.child(name));
-      // atoms.(newAtom);
-      return newAtom;
+    loose,
+    named,
+    version: "",
+    serialize() {
+      const serializedLoose = loose.serialize();
+      const serializedNamed = named.serialize();
+      return {
+        ...serializedLoose,
+        ...serializedNamed,
+        [this.identity.serialize()]: {
+          i: this.identity.serialize(),
+          v: {
+            loose: this.loose.identity.serialize(),
+            named: this.named.identity.serialize(),
+          },
+          k: PrimitiveValue.Map
+        }
+      }
     },
-    number(value: number, name: IdentityItem = ulid.new()) {
-      const newAtom = atom.number(value, identity.child(name));
-      // atoms.push(newAtom);
-      return newAtom;
+    string(value: string, name?: IdentityItem) {
+      return create(name, atom.string, value, this)
     },
-    boolean(value: boolean, name: IdentityItem = ulid.new()) {
-      const newAtom = atom.boolean(value, identity.child(name));
-      // atoms.push(newAtom);
-      return newAtom;
+    number(value: number, name?: IdentityItem) {
+      return create(name, atom.number, value, this)
     },
-    date(value: Date, name: IdentityItem = ulid.new()) {
-      const newAtom = atom.date(value, identity.child(name));
-      // atoms.push(newAtom);
-      return newAtom;
+    boolean(value: boolean, name?: IdentityItem) {
+      return create(name, atom.boolean, value, this)
     },
-    list(value: atom.PrimitiveList, name: IdentityItem = ulid.new()) {
-      const newAtom = atom.list(value, identity.child(name));
-      // atoms.push(newAtom);
-      return newAtom;
+    date(value: Date, name?: IdentityItem) {
+      return create(name, atom.date, value, this)
     },
-    collection(value: atom.AtomCollection, name: IdentityItem = ulid.new()) {
-      const newAtom = atom.collection(value, identity.child(name));
-      // atoms.push(newAtom);
-      return newAtom;
+    list(value: atom.PrimitiveList, name?: IdentityItem) {
+      return create(name, atom.list, value, this)
     },
-    map(value: atom.AtomMap, name: IdentityItem = ulid.new()) {
-      const newAtom = atom.map(value, identity.child(name), this);
-      // atoms.push(newAtom);
-      return newAtom;
+    collection(value: atom.AtomCollection, name?: IdentityItem) {
+      return create(name, atom.collection, value, this)
     },
-    async persist(...items: AnyAtom[]): Promise<CommitResultMessage[]> {
+    map(value: atom.AtomMap, name?: IdentityItem) {
+      return create(name, atom.map, value, this)
+    },
+    persist(): Promise<CommitResultMessage[]> {
       return runtime.repository.persist(this);
     },
-    async restore(identity: IdentityInstance) {
-      throw new Error("not implementd");
-      // return molecule(runtime, ...identity.key);
+    async restore(): Promise<Molecule> {
+      const mol = await runtime.repository.restore(this.identity);
+      console.log({mol});
+      return molecule(runtime, ...identity.key);
     },
     use(...names: string[]) {
       const items: AnyAtom[] = [];

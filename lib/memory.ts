@@ -1,11 +1,16 @@
-import type { AnyActivity, AnyActivityData } from "./activity.ts";
 import { assert } from "./assert.ts";
+import { PrimitiveKind, PrimitiveValue } from "./primitive.ts";
+import { type Ulid, ulid } from "./ulid.ts";
+import type { AnyActivity, AnyActivityData } from "./activity.ts";
+import type { AnyAtom } from "./atom.ts";
 import type { IdentityInstance } from "./identity.ts";
-import type { Runtime } from "./repository.ts";
-import type { Ulid } from "./ulid.ts";
+import type { Molecule } from "./molecule.ts";
+import type { CommitResultMessage, Runtime } from "./repository.ts";
+
+const store = new Map();
+const activityStore: Set<AnyActivity> = new Set<AnyActivity>();
 
 export function createMemory(): Runtime {
-  const activityStore: Set<AnyActivity> = new Set<AnyActivity>();
 
   const add = async (...items: Array<AnyActivity>) => {
     for (const item of items) {
@@ -32,14 +37,63 @@ export function createMemory(): Runtime {
     return activity;
   };
 
-  const store = new Map();
-
   return {
     repository: {
-      persist: async () => {
-        return [];
+      persist: async (...items: Array<AnyAtom | Molecule>) => {
+        const commitMsgs: CommitResultMessage[] = [];
+
+        for (const item of items) {
+          switch(item.kind) {
+            case PrimitiveKind.Molecule:
+              item.version = ulid.new();
+
+              for (const [key, value] of Object.entries(item.serialize())) {
+                store.set(key, value);
+              };
+
+              break;
+            case PrimitiveKind.Atom:
+              commitMsgs.push({
+                status: true,
+                versionstamp: ulid.new()
+              });
+
+              for (const [key, value] of Object.entries(item.serialize())) {
+                store.set(key, value);
+              };
+
+              break;
+          }
+        };
+
+        console.log(store);
+
+        return commitMsgs;
       },
-      restore: async () => {
+      restore: async (identity: IdentityInstance) => {
+        const item = store.get(identity.serialize());
+
+        switch(item.k) {
+          case PrimitiveValue.Boolean:
+          case PrimitiveValue.Number:
+          case PrimitiveValue.String:
+          case PrimitiveValue.List:
+            
+          case PrimitiveValue.Date:
+          case PrimitiveValue.Object:
+          case PrimitiveValue.Map:
+          case PrimitiveValue.Collection:
+            console.log(item.k);
+            break;
+          default:
+            throw new Error('Wtf');
+        }
+
+        // for (const [serializedIdentity, value] of Object.entries(item as any)) {
+        //   console.log(serializedIdentity, value);
+        // }
+
+        console.log(item);
         return null;
       },
     },

@@ -42,7 +42,7 @@ export type Atom<
 };
 
 // deno-lint-ignore no-explicit-any
-export type AnyAtom = Atom<any>;
+export type AnyAtom = Atom<any> & BaseAtomHelpers<any>;
 
 export type SerializedAtomWithReferences = {
   [i: IdentitySerialized]: SerializedAtom;
@@ -115,7 +115,8 @@ interface StringAtomHelpers extends BaseAtomHelpers<string> {}
 // interface of string atom with all helpers
 export type StringAtom =
   & Atom<string, PrimitiveValue.String>
-  & StringAtomHelpers;
+  & StringAtomHelpers
+  & BaseOrganismHelpers;
 
 // string atom with validation, guards and other helpers
 export function string(
@@ -145,6 +146,7 @@ export function string(
         return this.value.valueOf();
       },
     },
+    molecule,
   );
 }
 
@@ -152,7 +154,8 @@ export function string(
 export type NumberAtom =
   & Atom<number, PrimitiveValue.Number>
   & NumberAtomHelpers
-  & BaseAtomHelpers<number>;
+  & BaseAtomHelpers<number>
+  & BaseOrganismHelpers;
 
 // interface of number atom with all helpers
 interface NumberAtomHelpers extends BaseAtomHelpers<number> {}
@@ -185,6 +188,7 @@ export function number(
         return this.value.valueOf();
       },
     },
+    molecule,
   );
 }
 
@@ -192,7 +196,8 @@ export function number(
 export type BooleanAtom =
   & Atom<boolean, PrimitiveValue.Boolean>
   & BooleanAtomHelpers
-  & BaseAtomHelpers<boolean>;
+  & BaseAtomHelpers<boolean>
+  & BaseOrganismHelpers;
 
 // interface of boolean atom with all helpers
 interface BooleanAtomHelpers extends BaseAtomHelpers<boolean> {
@@ -238,6 +243,7 @@ export function boolean(
         this.value = false;
       },
     },
+    molecule,
   );
 }
 
@@ -275,6 +281,7 @@ export function date(
         return new Date(this.value.getTime());
       },
     },
+    molecule,
   );
 }
 
@@ -314,6 +321,7 @@ export function object(
         return structuredClone(this.value);
       },
     },
+    molecule,
   );
 }
 
@@ -321,7 +329,8 @@ export function object(
 export type ListAtom =
   & Atom<PrimitiveList, PrimitiveValue.List>
   & ListAtomHelpers
-  & BaseAtomHelpers<PrimitiveList>;
+  & BaseAtomHelpers<PrimitiveList>
+  & BaseOrganismHelpers;
 
 // interface of boolean atom with all helpers
 interface ListAtomHelpers extends BaseAtomHelpers<PrimitiveList> {
@@ -355,6 +364,7 @@ export function list(
         return structuredClone(this.value.valueOf()) as PrimitiveList;
       },
     },
+    molecule,
   );
 }
 
@@ -362,10 +372,12 @@ export function list(
 export type CollectionAtom =
   & Atom<AtomCollection, PrimitiveValue.Collection>
   & CollectionAtomHelpers
-  & BaseAtomHelpers<AtomCollection>;
+  & BaseAtomHelpers<AtomCollection>
+  & BaseOrganismHelpers;
 
 // interface of collection atom with all helpers
 interface CollectionAtomHelpers extends BaseAtomHelpers<AtomCollection> {
+  add(atom: AnyAtom): void
 }
 
 // atom collection, guards and other helpers
@@ -382,6 +394,9 @@ export function collection(
     {
       mutate(this: CollectionAtom, newValue: AtomCollection) {
         this.value = newValue;
+      },
+      add(this: CollectionAtom, atom: AnyAtom) {
+        this.value.push(atom);
       },
       serialize(
         this: CollectionAtom,
@@ -411,6 +426,7 @@ export function collection(
         return this.value.valueOf() as AtomCollection;
       },
     },
+    molecule,
   );
 }
 
@@ -418,7 +434,8 @@ export function collection(
 export type MapAtom =
   & Atom<AtomMap, PrimitiveValue.Map>
   & MapAtomHelpers
-  & BaseAtomHelpers<AtomMap>;
+  & BaseAtomHelpers<AtomMap>
+  & BaseOrganismHelpers;
 
 // interface of map atom with all helpers
 interface MapAtomHelpers extends BaseAtomHelpers<AtomMap> {
@@ -487,5 +504,6 @@ export function map(
         return this.value.valueOf() as AtomMap;
       },
     },
+    molecule,
   );
 }
