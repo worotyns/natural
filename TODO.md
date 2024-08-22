@@ -1,9 +1,5 @@
 docs - readme
 
-activity - przekminic czy nie dalo by sie tego zrobic "per molecule, per atom,
-per global scope"? czy to w ogole ma sens, wzgledem zalozen? restore i persist
-ogarnac i na deno kv i na memory
-
 persist ma ogarniac wersje! i dodac deno kv
 
 dodac cell i refaktor na nim
@@ -14,5 +10,4 @@ poprawic examples!
 
 .use .byName .find? // zastanwoic sie nad sensem
 
-mozna pokminic jeszcze nad warstwa "przed zapisem" i "dla restore" -> zeby byla
-spojna dla 2 storage get/set i tyle
+klucze powinny byc w sumie arraykami a runtime powinnien decydowac, jedyne co to klucz przy serializacji moze byc stringiem

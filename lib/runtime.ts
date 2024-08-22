@@ -19,6 +19,8 @@ export type Runtime = {
 
 const store = new Map();
 
+// TODO: create deno kv runtime with transactions!
+
 export const memoryRuntime: Runtime = {
   get: async (key: string[]) => {
     const item = await store.get(identity(...key).serialize());
