@@ -578,13 +578,15 @@ export function map(
       serialize(this: MapAtom, references: SerializedAtomWithReferences = {}) {
         for (const key in this.value) {
           const atom = this.value[key];
+          if (!atom.identity) {
+            throw new RuntimeError("Cannot serialize - MapAtom property value must be AnyAtom")
+          }
           const reference = atom.identity.serialize();
           if (reference in references) {
             throw new RuntimeError(
               "Cannot serialize atoms, with same identity: " + reference,
             );
           }
-
           references[key] = atom.serialize(references)[reference];
         }
 

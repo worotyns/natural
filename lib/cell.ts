@@ -1,198 +1,201 @@
-// import { InvalidStateError } from "./errors.ts";
-// import { createLog, measure, ulid } from "./utils.ts";
-// import { type AnyAtom, atom } from "./atom.ts";
-// import { combine, type Identity, serialize } from "./identifier.ts";
-// import { type Molecule, molecule } from "./molecule.ts";
-// import type { Runtime } from "./runtime.ts";
+import { InvalidStateError } from "./errors.ts";
+import { createLog, measure } from "./utils.ts";
+import { type AnyAtom } from "./atom.ts";
+import { type Molecule, molecule } from "./molecule.ts";
+import type { Runtime } from "./runtime.ts";
+import type { IdentityInstance } from "./identity.ts";
+import { createRepository, Repository } from "./repository.ts";
+import { ulid } from "./ulid.ts";
 
-// export type CellState = Molecule;
+export type CellState = Molecule;
 
-// enum CellResultState {
-//   success = "success",
-//   failure = "failure",
-//   waiting = "waiting",
-// }
+enum CellResultState {
+  Success = "success",
+  Failure = "failure",
+  Waiting = "waiting",
+}
 
-// type WaitForKey = string;
+type WaitForKey = string;
 
-// export interface CellCtx<S> {
-//   identity: Identity;
-//   services: S;
-//   log(msg: string): Promise<void>;
-//   waitFor<T = unknown>(key: WaitForKey): Promise<T>;
-//   persist(...items: Array<AnyAtom | Molecule>): Promise<void>;
-//   restore<T = unknown>(identity: Identity): Promise<T | null>;
-//   set<T = unknown>(key: string, val: T): Promise<void>;
-//   get<T = unknown>(key: string): T | null;
-//   cancel(msg: string): Promise<void>;
-//   run: (
-//     identity: Identity,
-//     callback: (ctx: CellCtx<S>) => Promise<void>,
-//   ) => Promise<void>;
-// }
+export interface CellCtx {
+  identity: IdentityInstance;
+  repository: Repository;
+  log(msg: string): Promise<void>;
+  waitFor<T = unknown>(key: WaitForKey): Promise<T>;
+  persist(...items: Array<AnyAtom | Molecule>): Promise<void>;
+  restore<T = unknown>(identity: IdentityInstance): Promise<T | null>;
+  set<T = unknown>(key: string, val: T): Promise<void>;
+  get<T = unknown>(key: string): T | null;
+  cancel(msg: string): Promise<void>;
+  run: (
+    identity: IdentityInstance,
+    callback: (ctx: CellCtx) => Promise<unknown>,
+  ) => Promise<unknown>;
+}
 
-// enum CellStatus {
-//   waiting = "waiting",
-//   running = "running",
-//   canceled = "canceled",
-//   finished = "finished",
-// }
+enum CellStatus {
+  Waiting = "waiting",
+  Running = "running",
+  Canceled = "canceled",
+  Finished = "finished",
+}
 
-// const createState = (
-//   identity: Identity,
-//   stateMolecule?: Molecule,
-// ): CellState => {
-//   if (stateMolecule) {
-//     return stateMolecule;
-//   }
+const createState = (
+  identity: IdentityInstance,
+  repository: Repository,
+  stateMolecule?: Molecule,
+): CellState => {
+  if (stateMolecule) {
+    return stateMolecule;
+  }
 
-//   return molecule(combine(identity, ulid.new()), [
-//     atom("status", CellStatus.running),
-//     atom("logs", []),
-//     atom("results", {}),
-//     atom("kv", {}),
-//   ]);
-// };
+  const state = molecule(repository, ...identity.child(ulid.new()));
 
-// const createContext = <S>(
-//   state: CellState,
-//   runtime: Runtime<S>,
-// ): CellCtx<S> => {
-//   const [status, kv, logs, results] = state.use(
-//     "status",
-//     "kv",
-//     "logs",
-//     "results",
-//   );
+  state.string(CellStatus.Running, 'status');
+  state.list([], 'logs');
+  state.object({}, 'results');
+  state.object({}, 'kv');
 
-//   let shouldSuspend = false;
+  return state;
+};
 
-//   const ctx: CellCtx<S> = {
-//     identity: state.identity,
-//     services: runtime.services,
-//     persist: (...items: Array<AnyAtom | Molecule>): Promise<void> => {
-//       runtime.repository.persist(...items.filter((i) => i.wasModified()));
-//       return Promise.resolve();
-//     },
-//     restore: <T = unknown>(identity: Identity): Promise<T | null> => {
-//       return Promise.resolve(runtime.repository.restore(identity) as T | null);
-//     },
-//     set: <T = unknown>(key: string, val: unknown) => {
-//       kv.mutate({ ...kv.value, [key]: val });
-//       return Promise.resolve(val) as Promise<T>;
-//     },
-//     get: <T = unknown>(key: string) => {
-//       return kv.value[key] as T || null;
-//     },
-//     log: (msg: string) => {
-//       logs.mutate([...logs.value, createLog(msg)]);
-//       return Promise.resolve();
-//     },
-//     waitFor: (key: WaitForKey) => {
-//       const currentValue = kv.value[key] || false;
+const createContext = (
+  state: CellState,
+  repository: Repository,
+): CellCtx => {
+  const [status, kv, logs, results] = state.use(
+    "status",
+    "kv",
+    "logs",
+    "results",
+  );
 
-//       if (currentValue) {
-//         return Promise.resolve(currentValue);
-//       } else {
-//         shouldSuspend = true;
-//         logs.mutate([...logs.value, createLog("waiting for", key)]);
-//         status.mutate(CellStatus.waiting);
-//         kv.mutate({ ...kv.value, [key]: false });
-//         return Promise.resolve(null);
-//       }
-//     },
-//     cancel: (msg: string) => {
-//       logs.mutate([...logs.value, createLog("canceled with reason: ", msg)]);
-//       status.mutate(CellStatus.canceled);
-//       return Promise.resolve();
-//     },
-//     run: async (
-//       identity: Identity,
-//       callback: (ctx: CellCtx<S>) => Promise<void>,
-//     ): Promise<void> => {
-//       const key = serialize(identity);
-//       const cached = results.value[key];
+  let shouldSuspend = false;
 
-//       if (cached && cached.state === CellResultState.success) {
-//         logs.mutate([...logs.value, createLog("get cached:", key)]);
-//         return cached;
-//       }
+  const ctx: CellCtx = {
+    identity: state.identity,
+    repository: repository,
+    persist: (...items: Array<AnyAtom | Molecule>): Promise<void> => {
+      repository.atoms.persist(...items);
+      return Promise.resolve();
+    },
+    restore: <T = unknown>(identity: IdentityInstance): Promise<T | null> => {
+      return Promise.resolve(repository.atoms.restore(identity) as T | null);
+    },
+    set: <T = unknown>(key: string, val: unknown) => {
+      kv.mutate({ ...kv.value, [key]: val });
+      return Promise.resolve(val) as Promise<T>;
+    },
+    get: <T = unknown>(key: string) => {
+      return kv.value[key] as T || null;
+    },
+    log: (msg: string) => {
+      logs.mutate([...logs.value, createLog(msg)]);
+      return Promise.resolve();
+    },
+    waitFor: (key: WaitForKey) => {
+      const currentValue = kv.value[key] || false;
 
-//       if (shouldSuspend) {
-//         return;
-//       }
+      if (currentValue) {
+        return Promise.resolve(currentValue);
+      } else {
+        shouldSuspend = true;
+        logs.mutate([...logs.value, createLog("waiting for", key)]);
+        status.mutate(CellStatus.Waiting);
+        kv.mutate({ ...kv.value, [key]: false });
+        return Promise.resolve(null);
+      }
+    },
+    cancel: (msg: string) => {
+      logs.mutate([...logs.value, createLog("canceled with reason: ", msg)]);
+      status.mutate(CellStatus.Canceled);
+      return Promise.resolve();
+    },
+    run: async (
+      identity: IdentityInstance,
+      callback: (ctx: CellCtx) => Promise<unknown>,
+    ): Promise<unknown> => {
+      const key = identity.serialize();
+      const cached = results.value[key];
 
-//       const stop = measure();
+      if (cached && cached.state === CellResultState.Success) {
+        logs.mutate([...logs.value, createLog("get cached:", key)]);
+        return cached;
+      }
 
-//       await callback(ctx)
-//         .then((res) => {
-//           results.mutate({
-//             ...results.value,
-//             [key]: {
-//               time: stop(),
-//               state: CellResultState.success,
-//               result: res,
-//             },
-//           });
-//           return true;
-//         })
-//         .catch((err) => {
-//           shouldSuspend = true;
-//           results.mutate({
-//             ...results.value,
-//             [key]: {
-//               time: stop(),
-//               state: CellResultState.failure,
-//               result: err.message,
-//             },
-//           });
-//           return false;
-//         });
-//     },
-//   };
+      if (shouldSuspend) {
+        return;
+      }
 
-//   return ctx;
-// };
+      const stop = measure();
 
-// export type Cell = (
-//   keyValueContextToExtend: Record<string, unknown>,
-//   resumedState?: CellState,
-// ) => Promise<CellState>;
+      await callback(ctx)
+        .then((res) => {
+          results.mutate({
+            ...results.value,
+            [key]: {
+              time: stop(),
+              state: CellResultState.Success,
+              result: res,
+            },
+          });
+          return true;
+        })
+        .catch((err) => {
+          shouldSuspend = true;
+          results.mutate({
+            ...results.value,
+            [key]: {
+              time: stop(),
+              state: CellResultState.Failure,
+              result: err.message,
+            },
+          });
+          return false;
+        });
+    },
+  };
 
-// export const cell = <S>(
-//   identity: Identity,
-//   runner: (ctx: CellCtx<S>) => Promise<void>,
-//   runtime: Runtime<S>,
-// ): Cell => {
-//   return async (
-//     keyValueContextToExtend: Record<string, unknown> = {},
-//     resumedState?: CellState,
-//   ) => {
-//     const state = createState(identity, resumedState);
+  return ctx;
+};
 
-//     const [status, kv] = state.use("status", "kv");
+export type Cell = (
+  keyValueContextToExtend: Record<string, unknown>,
+  resumedState?: CellState,
+) => Promise<CellState>;
 
-//     if (status.value === CellStatus.canceled) {
-//       // TODO: to przekminic? bo w suie to mozna zrobic dedykowane bledy pod listenera? zeby nie odjebywal na koncu procesu
-//       throw InvalidStateError.format(
-//         "Cannot run cancelled workflow: %s",
-//         serialize(combine(state.identity)),
-//       );
-//     }
+export const cell = (
+  identity: IdentityInstance,
+  runner: (ctx: CellCtx) => Promise<void>,
+  repository: Repository,
+): Cell => {
+  return async (
+    keyValueContextToExtend: Record<string, unknown> = {},
+    resumedState?: CellState,
+  ) => {
+    const state = createState(identity, repository, resumedState);
 
-//     kv.mutate({ ...kv.value, ...keyValueContextToExtend });
-//     status.mutate(CellStatus.running);
+    const [status, kv] = state.use("status", "kv");
 
-//     await runner(createContext(state, runtime));
+    if (status.value === CellStatus.Canceled) {
+      // TODO: to przekminic? bo w suie to mozna zrobic dedykowane bledy pod listenera? zeby nie odjebywal na koncu procesu
+      throw InvalidStateError.format(
+        "Cannot run cancelled workflow: %s",
+        state.identity.serialize(),
+      );
+    }
 
-//     if (status.value !== CellStatus.waiting) {
-//       // TODO: koniec procesu? jest ok, mozna dodac ewntualnie statusow
-//       status.mutate(CellStatus.finished);
-//     }
+    kv.mutate({ ...kv.value, ...keyValueContextToExtend });
+    status.mutate(CellStatus.Running);
 
-//     const serialized = state.serialize();
-//     await runtime.repository.persist(state);
+    await runner(createContext(state, repository));
 
-//     return serialized;
-//   };
-// };
+    if (status.value !== CellStatus.Waiting) {
+      // TODO: koniec procesu? jest ok, mozna dodac ewntualnie statusow
+      status.mutate(CellStatus.Finished);
+    }
+
+    await state.persist();
+    return state;
+  };
+};
