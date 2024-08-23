@@ -10,7 +10,7 @@ import type { CommitResultMessage, Repository } from "./repository.ts";
 import { AssertionError } from "./errors.ts";
 import { createRepository } from "./repository.ts";
 import { PrimitiveKind, PrimitiveValue } from "./primitive.ts";
-import { memoryRuntime } from "./runtime.ts";
+import { denoRuntime, memoryRuntime } from "./runtime.ts";
 import { assert } from "./assert.ts";
 
 export type Molecule = {
@@ -48,8 +48,7 @@ export function temporary(...name: IdentityItem[]): Molecule {
 
 // for production purposes - with durable store
 export function persistent(...name: IdentityItem[]): Molecule {
-  // TODO: add deno kv
-  return molecule(createRepository(memoryRuntime), ...name);
+  return molecule(createRepository(denoRuntime), ...name);
 }
 
 // base molecule item can be used with runtime, must be named before use

@@ -1,6 +1,4 @@
-import type {
-  IdentityInstance,
-} from "./identity.ts";
+import { deserialize, identity, type IdentityInstance } from "./identity.ts";
 import type { CommitResultMessage } from "./repository.ts";
 import { ulid } from "./ulid.ts";
 
@@ -11,7 +9,7 @@ export type PersistReadyItem<T = unknown> = {
 };
 export type Runtime = {
   set(...items: Array<PersistReadyItem>): Promise<CommitResultMessage[]>;
-  get<T = unknown>(key: IdentityInstance): Promise<PersistReadyItem<T>>;
+  get<T = unknown>(key: IdentityInstance): Promise<PersistReadyItem<T> | null>;
   scan<T = unknown>(
     prefix: IdentityInstance,
     start: IdentityInstance,
@@ -20,8 +18,6 @@ export type Runtime = {
 };
 
 const store = new Map();
-
-// TODO: create deno kv runtime with transactions!
 
 export const memoryRuntime: Runtime = {
   get: async (key: IdentityInstance) => {
@@ -71,5 +67,62 @@ export const memoryRuntime: Runtime = {
     }
 
     return items;
+  },
+};
+
+const db = await Deno.openKv();
+
+const toAtomicCheck = (item: PersistReadyItem): Deno.AtomicCheck => {
+  return {
+    key: deserialize(item.key).key,
+    versionstamp: item.ver,
+  };
+};
+
+export const denoRuntime: Runtime = {
+  get: async <T = unknown>(key: IdentityInstance) => {
+    const item = await db.get(key.key);
+
+    if (!item) {
+      return null;
+    }
+
+    return {
+      key: identity(...item.key.map((i) => i.toString())).serialize(),
+      val: item.value as T,
+      ver: item.versionstamp,
+    } as PersistReadyItem<T>;
+  },
+  set: async (...items: PersistReadyItem[]) => {
+    const transaction = db.atomic();
+    for (const item of items) {
+      if (item.ver) {
+        transaction.check(toAtomicCheck(item));
+      }
+      transaction.set(deserialize(item.key).key, item.val);
+    }
+
+    const result = await transaction.commit();
+    return items.map(() => ({ status: result.ok, versionstamp: 'versionstamp' in result ? result.versionstamp : null })) as CommitResultMessage[];
+  },
+  scan: async <T=unknown>(
+    prefix: IdentityInstance,
+    start: IdentityInstance,
+    limit: number,
+  ) => {
+    const activity: T[] = [];
+
+    for await (
+      const item of db.list<T>({
+        prefix: prefix.key,
+        start: start.key,
+      }, {
+        limit: limit,
+      })
+    ) {
+      activity.push(item.value);
+    }
+
+    return activity;
   },
 };

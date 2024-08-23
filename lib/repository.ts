@@ -150,6 +150,12 @@ export function createRepository(runtime: Runtime): Repository {
             const mapItem = await runtime.get<atom.SerializedAtom>(
               deserialize(ident),
             );
+
+            if (!mapItem) {
+              console.warn("item not found: ", ident);
+              continue;
+            }
+
             temporaryMap.set(
               key,
               await restoreSingleAtom(mapItem.val, mol) as atom.AnyAtom,
@@ -158,12 +164,21 @@ export function createRepository(runtime: Runtime): Repository {
           return temporaryMap;
         }
         case PrimitiveValue.Collection: {
-          const temporaryCollection = atom.collection([], deserialize(item.i), mol);
+          const temporaryCollection = atom.collection(
+            [],
+            deserialize(item.i),
+            mol,
+          );
 
           for (const ident of item.v as IdentitySerialized[]) {
             const collItem = await runtime.get<atom.SerializedAtom>(
               deserialize(ident),
             );
+
+            if (!collItem) {
+              console.warn("item not found: ", ident);
+              continue;
+            }
 
             temporaryCollection.add(
               await restoreSingleAtom(collItem.val, mol) as atom.AnyAtom,
@@ -199,6 +214,11 @@ export function createRepository(runtime: Runtime): Repository {
     };
 
     const item = await runtime.get<atom.SerializedAtom>(identityToRestore);
+
+    if (!item) {
+      return null;
+    }
+
     return restoreUnknown(item.val);
   };
 
