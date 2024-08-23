@@ -1,18 +1,23 @@
-import { identity } from "./identity.ts";
+import {
+  deserialize,
+  identity,
+  type IdentityInstance,
+  serialize,
+} from "./identity.ts";
 import type { CommitResultMessage } from "./repository.ts";
 import { ulid } from "./ulid.ts";
 
 export type PersistReadyItem<T = unknown> = {
-  key: string[];
+  key: string;
   val: T;
   ver: string;
 };
 export type Runtime = {
   set(...items: Array<PersistReadyItem>): Promise<CommitResultMessage[]>;
-  get<T = unknown>(key: string[]): Promise<PersistReadyItem<T>>;
+  get<T = unknown>(key: IdentityInstance): Promise<PersistReadyItem<T>>;
   scan<T = unknown>(
-    prefix: string[],
-    start: string[],
+    prefix: IdentityInstance,
+    start: IdentityInstance,
     limit: number,
   ): Promise<T[]>;
 };
@@ -22,15 +27,15 @@ const store = new Map();
 // TODO: create deno kv runtime with transactions!
 
 export const memoryRuntime: Runtime = {
-  get: async (key: string[]) => {
-    const item = await store.get(identity(...key).serialize());
+  get: async (key: IdentityInstance) => {
+    const item = await store.get(key.serialize());
     return item;
   },
   set: async (...items: PersistReadyItem[]) => {
     const commitMsgs: CommitResultMessage[] = [];
     for (const item of items) {
       item.ver = ulid.new();
-      await store.set(identity(...item.key).serialize(), item);
+      await store.set(item.key, item);
       commitMsgs.push({
         status: true,
         versionstamp: item.ver,
@@ -38,16 +43,20 @@ export const memoryRuntime: Runtime = {
     }
     return commitMsgs;
   },
-  scan: async (prefix: string[], start: string[], limit: number) => {
+  scan: async (
+    prefix: IdentityInstance,
+    start: IdentityInstance,
+    limit: number,
+  ) => {
     const items = [];
-    for (const [_, {key, val}] of store) {
+    for (const [_, { key, val }] of store) {
       if (
-        identity(...key).serialize().startsWith(identity(...prefix).serialize())
+        key.startsWith(prefix.serialize())
       ) {
-        if (start && start.length) {
+        if (start && start.key.length) {
           if (
-            identity(...key).serialize().localeCompare(
-              identity(...start).serialize(),
+            key.localeCompare(
+              start.serialize(),
             ) > 0
           ) {
             items.push(val);

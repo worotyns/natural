@@ -18,7 +18,9 @@ Deno.test("molecule.atom.persistence", async () => {
 Deno.test("molecule.persistence and molecule.restore", async () => {
   const testUser = temporary("test", "users", "john@doe.com");
   testUser.boolean(false, "isMale");
+  testUser.number(22, "age");
   await testUser.persist();
-  await temporary(...testUser.identity).restore();
+  const mol = await temporary(...testUser.identity).restore();
+  console.log(mol.serialize());
   // console.log({testUser: testUser.serialize()});
 });

@@ -32,6 +32,7 @@ export type Molecule = {
   map(value: atom.AtomMap, name?: IdentityItem): atom.MapAtom;
   persist: () => Promise<CommitResultMessage[]>;
   restore: () => Promise<Molecule>;
+  deserialize: (data: atom.SerializedAtom) => Molecule;
   use(...names: string[]): AnyAtom[];
 };
 
@@ -75,6 +76,11 @@ export function molecule(
     loose,
     named,
     version: "",
+    deserialize(data: atom.SerializedAtom): Molecule {
+      // const { i, v, t, k } = data;
+      // const mol = create(i, atom.deserialize(t, k), v, this);
+      return {} as Molecule;
+    },
     serialize() {
       const serializedLoose = loose.serialize();
       const serializedNamed = named.serialize();

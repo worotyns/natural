@@ -124,11 +124,11 @@ export const serialize = (identity: Identity): IdentitySerialized => {
 };
 
 // Deserialize from string
-export const deserialize = (identity: IdentitySerialized): Identity => {
-  if (!isSerializedIdentity(identity)) {
+export const deserialize = (rawIdentity: IdentitySerialized): IdentityInstance => {
+  if (!isSerializedIdentity(rawIdentity)) {
     throw new AssertionError("Not an identity");
   }
 
-  const [_, key] = identity.split("identity::");
-  return { kind: PrimitiveKind.Identity, key: key.split(":") };
+  const [_, key] = rawIdentity.split("identity::");
+  return identity(...key.split(":"));
 };
