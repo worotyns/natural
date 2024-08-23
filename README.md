@@ -1,6 +1,4 @@
-# Natural Framework
-
-Wrapper around deno KV to build elastic entities.
+# Natural
 
 Idea:
 
@@ -10,4 +8,5 @@ Idea:
 
 You can store simple atom, or molecule. Mutate them, use it in cells.
 
-This is just concept phase of project - WIP
+This is just concept - WIP - Do not use
+Frequent API changes
