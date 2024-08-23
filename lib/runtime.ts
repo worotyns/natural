@@ -1,8 +1,5 @@
-import {
-  deserialize,
-  identity,
-  type IdentityInstance,
-  serialize,
+import type {
+  IdentityInstance,
 } from "./identity.ts";
 import type { CommitResultMessage } from "./repository.ts";
 import { ulid } from "./ulid.ts";

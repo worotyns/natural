@@ -502,7 +502,7 @@ export function map(
             i: this.identity.serialize(),
             t: this.valueKind,
             k: this.kind,
-            v: Object.keys(references).reduce((res, val) => {
+            v: Object.keys(this.value).reduce((res, val) => {
               res[val] = references[val].i;
               return res;
             }, {} as Record<string, string>),

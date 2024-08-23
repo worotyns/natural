@@ -144,9 +144,7 @@ export function createRepository(runtime: Runtime): Repository {
             mol,
           );
         case PrimitiveValue.Map: {
-          const temporaryMap = mol
-            ? mol.map({})
-            : atom.map({}, deserialize(item.i));
+          const temporaryMap = atom.map({}, deserialize(item.i), mol);
 
           for (const [key, ident] of Object.entries(item.v)) {
             const mapItem = await runtime.get<atom.SerializedAtom>(
@@ -160,9 +158,7 @@ export function createRepository(runtime: Runtime): Repository {
           return temporaryMap;
         }
         case PrimitiveValue.Collection: {
-          const temporaryCollection = mol
-            ? mol.collection([])
-            : atom.collection([], deserialize(item.i));
+          const temporaryCollection = atom.collection([], deserialize(item.i), mol);
 
           for (const ident of item.v as IdentitySerialized[]) {
             const collItem = await runtime.get<atom.SerializedAtom>(
@@ -177,7 +173,7 @@ export function createRepository(runtime: Runtime): Repository {
           return temporaryCollection;
         }
         default:
-          throw new Error("Wtf");
+          throw new Error("not supported kind of primitive");
       }
     };
 

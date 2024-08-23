@@ -96,8 +96,8 @@ export function molecule(
       const serializedLoose = loose.serialize();
       const serializedNamed = named.serialize();
       return {
-        ...serializedLoose,
         ...serializedNamed,
+        ...serializedLoose,
         [this.identity.serialize()]: {
           i: this.identity.serialize(),
           v: {
