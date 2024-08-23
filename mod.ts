@@ -1,10 +1,10 @@
-// export * from "./kv.ts";
 export { createRepository } from "./repository.ts";
 export { denoRuntime, memoryRuntime, type Runtime } from "./runtime.ts";
 export { molecule, persistent, temporary } from "./molecule.ts";
 export { deserialize, identity } from "./identity.ts";
 export { type Activity, activity, type ActivityData } from "./activity.ts";
 export { cell, type CellCtx } from "./cell.ts";
+export { atom, boolean, number, list, map, object, collection, date, string } from "./atom.ts";
 export type * from "./atom.ts";
 export type * from "./molecule.ts";
 export type * from "./repository.ts";

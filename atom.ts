@@ -477,7 +477,8 @@ export function collection(
       },
       toJSON(this: CollectionAtom) {
         return {
-          [this.identity.serialize()]: this.valueOf(),
+          [this.identity.serialize()]: this.valueOf()
+            .map(item => item.toJSON()),
         };
       },
       serialize(
