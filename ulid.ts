@@ -1,7 +1,15 @@
 import { decodeTime, monotonicUlid, ulid as baseUlid } from "@std/ulid";
 
+export interface UlidNamespace {
+  "new"(): string;
+  getTime(ulid: string): number;
+  fromTime(date: number): string;
+  fromDate(date: Date): string;
+  unixEpochStart(): string;
+}
+
 export type Ulid = string;
-export const ulid = {
+export const ulid: UlidNamespace = {
   new() {
     return monotonicUlid();
   },
