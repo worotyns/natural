@@ -9,10 +9,13 @@ Deno.test("atom.string", () => {
   assertEquals(numAtm.value, "3");
   assertEquals(numAtm.serialize(), {
     [numAtm.identity.serialize()]: {
-      v: "3",
-      t: PrimitiveValue.String,
-      k: PrimitiveKind.Atom,
-      i: numAtm.identity.serialize(),
+      version: "",
+      value: {
+        v: "3",
+        t: PrimitiveValue.String,
+        k: PrimitiveKind.Atom,
+        i: numAtm.identity.serialize(),
+      },
     },
   });
   assertEquals(numAtm.valueOf(), "3");
@@ -24,10 +27,13 @@ Deno.test("atom.date", () => {
   assertEquals(numAtm.value, date);
   assertEquals(numAtm.serialize(), {
     [numAtm.identity.serialize()]: {
-      t: PrimitiveValue.Date,
-      k: PrimitiveKind.Atom,
-      v: date.toISOString(),
-      i: numAtm.identity.serialize(),
+      version: "",
+      value: {
+        t: PrimitiveValue.Date,
+        k: PrimitiveKind.Atom,
+        v: date.toISOString(),
+        i: numAtm.identity.serialize(),
+      },
     },
   });
 });
@@ -38,10 +44,13 @@ Deno.test("atom.number", () => {
   assertEquals(numAtm.value, 3);
   assertEquals(numAtm.serialize(), {
     [numAtm.identity.serialize()]: {
-      t: PrimitiveValue.Number,
-      k: PrimitiveKind.Atom,
-      v: 3,
-      i: numAtm.identity.serialize(),
+      version: "",
+      value: {
+        t: PrimitiveValue.Number,
+        k: PrimitiveKind.Atom,
+        v: 3,
+        i: numAtm.identity.serialize(),
+      },
     },
   });
   assertEquals(numAtm.valueOf(), 3);
@@ -59,10 +68,13 @@ Deno.test("atom.boolean", () => {
   assertEquals(boolAtm.value, false);
   assertEquals(boolAtm.serialize(), {
     [boolAtm.identity.serialize()]: {
-      t: PrimitiveValue.Boolean,
-      k: PrimitiveKind.Atom,
-      v: false,
-      i: boolAtm.identity.serialize(),
+      version: "",
+      value: {
+        t: PrimitiveValue.Boolean,
+        k: PrimitiveKind.Atom,
+        v: false,
+        i: boolAtm.identity.serialize(),
+      },
     },
   });
 });
@@ -72,10 +84,13 @@ Deno.test("atom.list", () => {
   listAtm.mutate([1, "a", true, {}]);
   assertEquals(listAtm.serialize(), {
     [listAtm.identity.serialize()]: {
-      i: listAtm.identity.serialize(),
-      t: PrimitiveValue.List,
-      k: PrimitiveKind.Atom,
-      v: [1, "a", true, {}],
+      version: "",
+      value: {
+        i: listAtm.identity.serialize(),
+        t: PrimitiveValue.List,
+        k: PrimitiveKind.Atom,
+        v: [1, "a", true, {}],
+      },
     },
   });
 });
@@ -89,24 +104,33 @@ Deno.test("atom.collection", () => {
 
   assertEquals(collAtm2.serialize(), {
     [numAtm.identity.serialize()]: {
-      i: numAtm.identity.serialize(),
-      t: PrimitiveValue.Boolean,
-      k: PrimitiveKind.Atom,
-      v: numAtm.valueOf(),
+      version: "",
+      value: {
+        i: numAtm.identity.serialize(),
+        t: PrimitiveValue.Boolean,
+        k: PrimitiveKind.Atom,
+        v: numAtm.valueOf(),
+      },
     },
 
     [collAtm.identity.serialize()]: {
-      i: collAtm.identity.serialize(),
-      t: PrimitiveValue.List,
-      k: PrimitiveKind.Atom,
-      v: collAtm.valueOf(),
+      version: "",
+      value: {
+        i: collAtm.identity.serialize(),
+        t: PrimitiveValue.List,
+        k: PrimitiveKind.Atom,
+        v: collAtm.valueOf(),
+      },
     },
 
     [collAtm2.identity.serialize()]: {
-      i: collAtm2.identity.serialize(),
-      t: PrimitiveValue.Collection,
-      k: PrimitiveKind.Atom,
-      v: [numAtm.identity.serialize(), collAtm.identity.serialize()],
+      version: "",
+      value: {
+        i: collAtm2.identity.serialize(),
+        t: PrimitiveValue.Collection,
+        k: PrimitiveKind.Atom,
+        v: [numAtm.identity.serialize(), collAtm.identity.serialize()],
+      },
     },
   });
 });
@@ -118,18 +142,24 @@ Deno.test("atom.map", () => {
 
   assertEquals(mapAtm.serialize(), {
     [mapAtm.identity.serialize()]: {
-      i: mapAtm.identity.serialize(),
-      t: PrimitiveValue.Map,
-      k: PrimitiveKind.Atom,
-      v: {
-        hm: numAtm.identity.serialize(),
+      version: "",
+      value: {
+        i: mapAtm.identity.serialize(),
+        t: PrimitiveValue.Map,
+        k: PrimitiveKind.Atom,
+        v: {
+          hm: numAtm.identity.serialize(),
+        },
       },
     },
     [numAtm.identity.serialize()]: {
-      i: numAtm.identity.serialize(),
-      t: PrimitiveValue.Number,
-      k: PrimitiveKind.Atom,
-      v: 1,
+      version: "",
+      value: {
+        i: numAtm.identity.serialize(),
+        t: PrimitiveValue.Number,
+        k: PrimitiveKind.Atom,
+        v: 1,
+      },
     },
   });
 });

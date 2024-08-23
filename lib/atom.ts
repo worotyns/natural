@@ -38,25 +38,28 @@ export type Atom<
   value: ValueType;
   valueKind: ValueTypeKind;
   version: Versionstamp;
-  // runtime: Runtime;
 };
 
 // deno-lint-ignore no-explicit-any
-export type AnyAtom = Atom<any> & BaseAtomHelpers<any>;
+export type AnyAtom = Atom<any> & BaseAtomHelpers<any> & BaseOrganismHelpers;
 
 export type SerializedAtomWithReferences = {
   [i: IdentitySerialized]: SerializedAtom;
 };
 
 export type SerializedAtom = {
-  i: IdentitySerialized;
-  k: PrimitiveKind;
-  v: Primitive;
-  t: PrimitiveValue;
+  value: {
+    i: IdentitySerialized;
+    k: PrimitiveKind;
+    v: Primitive;
+    t: PrimitiveValue;
+  };
+  version: Versionstamp;
 };
 
 // base atom interface that allows mutation and persistence
 type BaseAtomHelpers<V> = {
+  toJSON(): object;
   // drop references by structured clone
   valueOf(): V;
   // ready to store in database
@@ -65,6 +68,7 @@ type BaseAtomHelpers<V> = {
   ): SerializedAtomWithReferences;
   // basic primitive for updates
   mutate(value: V): void;
+  setVersion: (version: string) => void;
 };
 
 // base logic for persistence and archiving
@@ -100,13 +104,6 @@ export function atom<V, K extends PrimitiveValue, H extends BaseAtomHelpers<V>>(
       const [response] = await molecule.runtime.atoms.persist(this);
       this.version = response.versionstamp;
     },
-    // async archive() {
-    //   if (!molecule) {
-    //     throw new RuntimeError('Cannot archive without an molecule, create atom from molecule first. Then you will able to use .persist() on atom.');
-    //   }
-    //   const [response] = await molecule.repository.archive(this);
-    //   this.version = response.versionstamp;
-    // }
   };
 }
 
@@ -131,16 +128,27 @@ export function string(
     identity,
     "",
     {
+      setVersion(this: StringAtom, version: string) {
+        this.version = version;
+      },
       mutate(this: StringAtom, newValue: string) {
         this.value = newValue;
+      },
+      toJSON(this: StringAtom) {
+        return {
+          [this.identity.serialize()]: this.valueOf(),
+        };
       },
       serialize(this: StringAtom) {
         return {
           [this.identity.serialize()]: {
-            i: this.identity.serialize(),
-            t: this.valueKind,
-            v: this.valueOf(),
-            k: this.kind,
+            version: this.version,
+            value: {
+              i: this.identity.serialize(),
+              t: this.valueKind,
+              v: this.valueOf(),
+              k: this.kind,
+            },
           },
         };
       },
@@ -174,16 +182,27 @@ export function number(
     identity,
     "",
     {
+      setVersion(this: NumberAtom, version: string) {
+        this.version = version;
+      },
       mutate(this: NumberAtom, newValue: number) {
         this.value = newValue;
+      },
+      toJSON(this: NumberAtom) {
+        return {
+          [this.identity.serialize()]: this.valueOf(),
+        };
       },
       serialize(this: NumberAtom) {
         return {
           [this.identity.serialize()]: {
-            i: this.identity.serialize(),
-            t: this.valueKind,
-            v: this.valueOf(),
-            k: this.kind,
+            version: this.version,
+            value: {
+              i: this.identity.serialize(),
+              t: this.valueKind,
+              v: this.valueOf(),
+              k: this.kind,
+            },
           },
         };
       },
@@ -221,16 +240,27 @@ export function boolean(
     identity,
     "",
     {
+      setVersion(this: BooleanAtom, version: string) {
+        this.version = version;
+      },
       mutate(this: BooleanAtom, newValue: boolean) {
         this.value = newValue;
+      },
+      toJSON(this: BooleanAtom) {
+        return {
+          [this.identity.serialize()]: this.valueOf(),
+        };
       },
       serialize(this: BooleanAtom) {
         return {
           [this.identity.serialize()]: {
-            i: this.identity.serialize(),
-            t: this.valueKind,
-            v: this.valueOf(),
-            k: this.kind,
+            version: this.version,
+            value: {
+              i: this.identity.serialize(),
+              t: this.valueKind,
+              v: this.valueOf(),
+              k: this.kind,
+            },
           },
         };
       },
@@ -269,16 +299,27 @@ export function date(
     identity,
     "",
     {
+      setVersion(this: DateAtom, version: string) {
+        this.version = version;
+      },
       mutate(this: DateAtom, newValue: Date) {
         this.value = newValue;
+      },
+      toJSON(this: DateAtom) {
+        return {
+          [this.identity.serialize()]: this.valueOf(),
+        };
       },
       serialize(this: DateAtom) {
         return {
           [this.identity.serialize()]: {
-            i: this.identity.serialize(),
-            t: this.valueKind,
-            v: this.valueOf().toISOString(),
-            k: this.kind,
+            version: this.version,
+            value: {
+              i: this.identity.serialize(),
+              t: this.valueKind,
+              v: this.valueOf().toISOString(),
+              k: this.kind,
+            },
           },
         };
       },
@@ -310,16 +351,27 @@ export function object(
     identity,
     "",
     {
+      setVersion(this: ObjectAtom, version: string) {
+        this.version = version;
+      },
       mutate(this: ObjectAtom, newValue: PrimitiveObject) {
         this.value = newValue;
+      },
+      toJSON(this: ObjectAtom) {
+        return {
+          [this.identity.serialize()]: this.valueOf(),
+        };
       },
       serialize(this: ObjectAtom) {
         return {
           [this.identity.serialize()]: {
-            i: this.identity.serialize(),
-            t: this.valueKind,
-            v: this.valueOf(),
-            k: this.kind,
+            version: this.version,
+            value: {
+              i: this.identity.serialize(),
+              t: this.valueKind,
+              v: this.valueOf(),
+              k: this.kind,
+            },
           },
         };
       },
@@ -340,6 +392,7 @@ export type ListAtom =
 
 // interface of boolean atom with all helpers
 interface ListAtomHelpers extends BaseAtomHelpers<PrimitiveList> {
+  add(value: Primitive): void;
 }
 
 // atom list, guards and other helpers
@@ -354,16 +407,30 @@ export function list(
     identity,
     "",
     {
+      add(this: ListAtom, value: Primitive) {
+        this.value.push(value);
+      },
+      setVersion(this: ListAtom, version: string) {
+        this.version = version;
+      },
       mutate(this: ListAtom, newValue: PrimitiveList) {
         this.value = newValue;
+      },
+      toJSON(this: ListAtom) {
+        return {
+          [this.identity.serialize()]: this.valueOf(),
+        };
       },
       serialize(this: ListAtom) {
         return {
           [this.identity.serialize()]: {
-            i: this.identity.serialize(),
-            t: this.valueKind,
-            v: this.valueOf(),
-            k: this.kind,
+            version: this.version,
+            value: {
+              i: this.identity.serialize(),
+              t: this.valueKind,
+              v: this.valueOf(),
+              k: this.kind,
+            },
           },
         };
       },
@@ -399,11 +466,19 @@ export function collection(
     identity,
     "",
     {
+      setVersion(this: CollectionAtom, version: string) {
+        this.version = version;
+      },
       mutate(this: CollectionAtom, newValue: AtomCollection) {
         this.value = newValue;
       },
       add(this: CollectionAtom, atom: AnyAtom) {
         this.value.push(atom);
+      },
+      toJSON(this: CollectionAtom) {
+        return {
+          [this.identity.serialize()]: this.valueOf(),
+        };
       },
       serialize(
         this: CollectionAtom,
@@ -423,10 +498,13 @@ export function collection(
         return {
           ...references,
           [this.identity.serialize()]: {
-            i: this.identity.serialize(),
-            t: this.valueKind,
-            v: Object.keys(references),
-            k: this.kind,
+            version: this.version,
+            value: {
+              i: this.identity.serialize(),
+              t: this.valueKind,
+              v: Object.keys(references),
+              k: this.kind,
+            },
           },
         };
       },
@@ -477,8 +555,25 @@ export function map(
       set(this: MapAtom, key: string, val: AnyAtom & BaseAtomHelpers<unknown>) {
         this.value[key] = val;
       },
+      setVersion(this: MapAtom, version: string) {
+        this.version = version;
+      },
       mutate(this: MapAtom, newValue: AtomMap) {
         this.value = newValue;
+      },
+      toJSON(this: MapAtom) {
+        return {
+          [this.identity.serialize()]: Object.keys(this.value).reduce(
+            (res, key) => {
+              const atom = this.value[key];
+              return {
+                ...res,
+                ...atom.toJSON(),
+              };
+            },
+            {},
+          ),
+        };
       },
       serialize(this: MapAtom, references: SerializedAtomWithReferences = {}) {
         for (const key in this.value) {
@@ -495,17 +590,20 @@ export function map(
 
         return {
           ...Object.keys(references).reduce((res, val) => {
-            res[references[val].i] = references[val];
+            res[references[val].value.i] = references[val];
             return res;
           }, {} as Record<string, SerializedAtom>),
           [this.identity.serialize()]: {
-            i: this.identity.serialize(),
-            t: this.valueKind,
-            k: this.kind,
-            v: Object.keys(this.value).reduce((res, val) => {
-              res[val] = references[val].i;
-              return res;
-            }, {} as Record<string, string>),
+            version: this.version,
+            value: {
+              i: this.identity.serialize(),
+              t: this.valueKind,
+              k: this.kind,
+              v: Object.keys(this.value).reduce((res, val) => {
+                res[val] = references[val].value.i;
+                return res;
+              }, {} as Record<string, string>),
+            },
           },
         };
       },

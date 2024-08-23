@@ -21,6 +21,7 @@ export type Molecule = {
   loose: atom.CollectionAtom;
   version: atom.Versionstamp;
   serialize(): atom.SerializedAtomWithReferences;
+  toJSON(): object;
   string(value: string, name?: IdentityItem): atom.StringAtom;
   number(value: number, name?: IdentityItem): atom.NumberAtom;
   boolean(value: boolean, name?: IdentityItem): atom.BooleanAtom;
@@ -28,7 +29,7 @@ export type Molecule = {
   object(
     value: atom.PrimitiveObject,
     name?: IdentityItem,
-  ): atom.PrimitiveObject;
+  ): atom.ObjectAtom;
   list(value: atom.PrimitiveList, name?: IdentityItem): atom.ListAtom;
   collection(
     value: atom.AtomCollection,
@@ -38,6 +39,7 @@ export type Molecule = {
   persist: () => Promise<CommitResultMessage[]>;
   restore: () => Promise<Molecule>;
   deserialize: (data: atom.MapAtom) => Molecule;
+  setVersion: (version: string) => void;
   use(...names: string[]): AnyAtom[];
 };
 
@@ -80,6 +82,9 @@ export function molecule(
     loose,
     named,
     version: "",
+    setVersion(version: string) {
+      this.version = version;
+    },
     deserialize(data: atom.MapAtom): Molecule {
       const named = data.get("named") as atom.MapAtom;
       assert(named, "named not exists");
@@ -91,6 +96,14 @@ export function molecule(
 
       return this;
     },
+    toJSON() {
+      return {
+        [this.identity.serialize()]: {
+          ...this.loose.toJSON(),
+          ...this.named.toJSON(),
+        },
+      };
+    },
     serialize() {
       const serializedLoose = loose.serialize();
       const serializedNamed = named.serialize();
@@ -98,13 +111,16 @@ export function molecule(
         ...serializedNamed,
         ...serializedLoose,
         [this.identity.serialize()]: {
-          i: this.identity.serialize(),
-          v: {
-            loose: this.loose.identity.serialize(),
-            named: this.named.identity.serialize(),
+          version: this.version,
+          value: {
+            i: this.identity.serialize(),
+            v: {
+              loose: this.loose.identity.serialize(),
+              named: this.named.identity.serialize(),
+            },
+            t: PrimitiveValue.Map,
+            k: this.kind,
           },
-          t: PrimitiveValue.Map,
-          k: this.kind,
         },
       };
     },

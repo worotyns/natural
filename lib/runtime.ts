@@ -103,9 +103,12 @@ export const denoRuntime: Runtime = {
     }
 
     const result = await transaction.commit();
-    return items.map(() => ({ status: result.ok, versionstamp: 'versionstamp' in result ? result.versionstamp : null })) as CommitResultMessage[];
+    return items.map(() => ({
+      status: result.ok,
+      versionstamp: "versionstamp" in result ? result.versionstamp : null,
+    })) as CommitResultMessage[];
   },
-  scan: async <T=unknown>(
+  scan: async <T = unknown>(
     prefix: IdentityInstance,
     start: IdentityInstance,
     limit: number,

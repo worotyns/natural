@@ -1,73 +1,30 @@
-// import { atom } from "../atom.ts";
-// import { organism } from "../lib/mod.ts";
-// import type { Molecule } from "../molecule.ts";
-// import { testing } from "./testing.ts";
+import { temporary } from "../lib/mod.ts";
 
-// const dev = organism(["dev"], testing);
+const team = temporary("dev", "team", "xyz");
+const teamUsers = team.list([], "users");
+team.object({
+  createdAt: Date.now(),
+  deletedAt: 0,
+}, "metadata");
 
-// const team = dev.molecule(["team", "xyz"], [
-//   atom("users", []),
-//   atom("metadata", {
-//     createdAt: Date.now(),
-//     deletedAt: null,
-//   }),
-// ]);
+teamUsers.add("john@email.com");
 
-// const [emptyTeamUsers] = team!.use("users");
+await team.persist();
 
-// emptyTeamUsers.mutate([
-//   ...emptyTeamUsers.value,
-//   "john@email.com",
-//   atom("atom@email.com", "johndoe@email.com"),
-// ]);
+// I can persist partial molecule
+teamUsers.add("jane@email.com");
+await teamUsers.persist();
 
-// console.log(team.serialize());
+// I can access named members
+const [metadata] = team.use("metadata");
 
-// await dev.runtime.repository.persist(team);
+metadata.mutate({
+  ...metadata.value,
+  deletedAt: Date.now(),
+});
 
-// console.log(team.serialize());
-// // console.log(Deno.inspect(dev.runtime.repository, { depth: 8, colors: true }));
+await metadata.persist();
 
-// // I can restore partial molecule
-// const namespacedIdentity = dev.identity(["team", "xyz"]);
-// const restoredMoleculeWithTeam = await dev.runtime.repository.restore<Molecule>(
-//   namespacedIdentity,
-//   ["users"],
-// );
+console.log(team.toJSON());
 
-// const [teamUsers] = restoredMoleculeWithTeam!.use("users");
-
-// // mutate molecule splited atom
-// teamUsers.mutate([
-//   ...teamUsers.value,
-//   "jane@email.com",
-//   "joe@email.com",
-// ]);
-
-// // can be stored separately as separated atom
-// await dev.runtime.repository.persist(teamUsers);
-
-// const restoredWholeTeam = await dev.runtime.repository.restore<Molecule>(
-//   namespacedIdentity,
-// );
-
-// // after save should molecule has a reference
-// await dev.runtime.repository.persist(restoredWholeTeam!);
-
-// const restoredOnlyMetadata = await dev.runtime.repository.restore<Molecule>(
-//   namespacedIdentity,
-//   ["metadata"],
-// );
-
-// const [metadata] = restoredOnlyMetadata!.use("metadata");
-
-// metadata.mutate({
-//   ...metadata.value,
-//   deletedAt: Date.now(),
-// });
-
-// // after save should molecule has a reference
-// await dev.runtime.repository.persist(restoredOnlyMetadata!);
-
-// console.log(Deno.inspect(dev.runtime.repository, { depth: 8, colors: true }));
-// //
+console.log(team.serialize());

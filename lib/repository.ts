@@ -13,7 +13,6 @@ import { type Molecule, molecule } from "./molecule.ts";
 import type { Runtime } from "./runtime.ts";
 import { assert } from "./assert.ts";
 import { RuntimeError } from "./errors.ts";
-import { ulid } from "./ulid.ts";
 
 export type IdentifiableAndValuedOfAndKindPrimitive = {
   kind: PrimitiveKind;
@@ -43,13 +42,16 @@ export type Repository = {
 
 export type CommitResultMessage = { status: boolean; versionstamp: string };
 
+export type PersistedAtom = atom.SerializedAtom["value"];
+
 export function createRepository(runtime: Runtime): Repository {
+  // append only version does not matter
   const add = async (...items: Array<AnyActivity>) => {
     for (const item of items) {
       await runtime.set({
         key: item.identity.serialize(),
         val: item.value,
-        ver: ulid.new(),
+        ver: "",
       });
     }
   };
@@ -81,29 +83,23 @@ export function createRepository(runtime: Runtime): Repository {
     for (const item of items) {
       switch (item.kind) {
         case PrimitiveKind.Molecule:
-          item.version = ulid.new();
-
           for (const [key, value] of Object.entries(item.serialize())) {
             await runtime.set({
               key: key,
-              val: value,
-              ver: ulid.new(),
+              val: value.value,
+              ver: value.version,
             });
           }
 
           break;
         case PrimitiveKind.Atom:
-          commitMsgs.push({
-            status: true,
-            versionstamp: ulid.new(),
-          });
-
           for (const [key, value] of Object.entries(item.serialize())) {
-            await runtime.set({
+            const [result] = await runtime.set({
               key: key,
-              val: value,
-              ver: ulid.new(),
+              val: value.value,
+              ver: value.version,
             });
+            commitMsgs.push(result);
           }
 
           break;
@@ -115,7 +111,7 @@ export function createRepository(runtime: Runtime): Repository {
 
   const restore = async <T = unknown>(identityToRestore: IdentityInstance) => {
     const restoreSingleAtom = async (
-      item: atom.SerializedAtom,
+      item: PersistedAtom,
       mol?: Molecule,
     ) => {
       switch (item.t) {
@@ -147,7 +143,7 @@ export function createRepository(runtime: Runtime): Repository {
           const temporaryMap = atom.map({}, deserialize(item.i), mol);
 
           for (const [key, ident] of Object.entries(item.v)) {
-            const mapItem = await runtime.get<atom.SerializedAtom>(
+            const mapItem = await runtime.get<PersistedAtom>(
               deserialize(ident),
             );
 
@@ -171,7 +167,7 @@ export function createRepository(runtime: Runtime): Repository {
           );
 
           for (const ident of item.v as IdentitySerialized[]) {
-            const collItem = await runtime.get<atom.SerializedAtom>(
+            const collItem = await runtime.get<PersistedAtom>(
               deserialize(ident),
             );
 
@@ -192,7 +188,7 @@ export function createRepository(runtime: Runtime): Repository {
       }
     };
 
-    const restoreUnknown = async (item: atom.SerializedAtom) => {
+    const restoreUnknown = async (item: PersistedAtom) => {
       switch (item.k) {
         case PrimitiveKind.Identity:
           throw new RuntimeError("identity not supported in serialization");
@@ -213,7 +209,7 @@ export function createRepository(runtime: Runtime): Repository {
       }
     };
 
-    const item = await runtime.get<atom.SerializedAtom>(identityToRestore);
+    const item = await runtime.get<PersistedAtom>(identityToRestore);
 
     if (!item) {
       return null;
