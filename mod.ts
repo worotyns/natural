@@ -2,8 +2,9 @@
 export { createRepository } from "./repository.ts";
 export { denoRuntime, memoryRuntime, type Runtime } from "./runtime.ts";
 export { molecule, persistent, temporary } from "./molecule.ts";
-export { identity } from "./identity.ts";
+export { deserialize, identity } from "./identity.ts";
 export { type Activity, activity, type ActivityData } from "./activity.ts";
+export { cell, type CellCtx } from "./cell.ts";
 export type * from "./atom.ts";
 export type * from "./molecule.ts";
 export type * from "./repository.ts";
