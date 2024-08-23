@@ -1,7 +1,6 @@
 # Natural
 
 Idea:
-
 - atom - primitive (can be persisted, restored)
 - molecule - namespace (aggregator for atoms, can create new atoms)
 - cell - long living durable process can use molecules and atoms inside
