@@ -1,4 +1,5 @@
 import { temporary } from "./molecule.ts";
+import { assertEquals } from "./testing.ts";
 
 Deno.test("molecule.atom", () => {
   // const testUsers = temporary("test", "users");
@@ -8,19 +9,12 @@ Deno.test("molecule.atom", () => {
   // testUsers.persist();
 });
 
-Deno.test("molecule.atom.persistence", async () => {
-  // const testUser = temporary("test", "users", "john@doe.com");
-  // const isMale = testUser.boolean(false, "isMale");
-  // await isMale.persist();
-  // console.log({testUser: isMale.serialize()});
-});
-
 Deno.test("molecule.persistence and molecule.restore", async () => {
   const testUser = temporary("test", "users", "john@doe.com");
   testUser.boolean(false, "isMale");
   testUser.number(22, "age");
+  testUser.object({ ha: 123 });
   await testUser.persist();
   const mol = await temporary(...testUser.identity).restore();
-  console.log(mol.serialize());
-  // console.log({testUser: testUser.serialize()});
+  assertEquals(mol.serialize(), testUser.serialize());
 });

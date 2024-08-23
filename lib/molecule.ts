@@ -11,6 +11,7 @@ import { AssertionError } from "./errors.ts";
 import { createRepository } from "./repository.ts";
 import { PrimitiveKind, PrimitiveValue } from "./primitive.ts";
 import { memoryRuntime } from "./runtime.ts";
+import { assert } from "./assert.ts";
 
 export type Molecule = {
   kind: PrimitiveKind.Molecule;
@@ -24,6 +25,10 @@ export type Molecule = {
   number(value: number, name?: IdentityItem): atom.NumberAtom;
   boolean(value: boolean, name?: IdentityItem): atom.BooleanAtom;
   date(value: Date, name?: IdentityItem): atom.DateAtom;
+  object(
+    value: atom.PrimitiveObject,
+    name?: IdentityItem,
+  ): atom.PrimitiveObject;
   list(value: atom.PrimitiveList, name?: IdentityItem): atom.ListAtom;
   collection(
     value: atom.AtomCollection,
@@ -32,7 +37,7 @@ export type Molecule = {
   map(value: atom.AtomMap, name?: IdentityItem): atom.MapAtom;
   persist: () => Promise<CommitResultMessage[]>;
   restore: () => Promise<Molecule>;
-  deserialize: (data: atom.SerializedAtom) => Molecule;
+  deserialize: (data: atom.MapAtom) => Molecule;
   use(...names: string[]): AnyAtom[];
 };
 
@@ -76,10 +81,16 @@ export function molecule(
     loose,
     named,
     version: "",
-    deserialize(data: atom.SerializedAtom): Molecule {
-      // const { i, v, t, k } = data;
-      // const mol = create(i, atom.deserialize(t, k), v, this);
-      return {} as Molecule;
+    deserialize(data: atom.MapAtom): Molecule {
+      const named = data.get("named") as atom.MapAtom;
+      assert(named, "named not exists");
+      this.named.mutate(named.value);
+
+      const loose = data.get("loose") as atom.CollectionAtom;
+      assert(loose, "loose not exists");
+      this.loose.mutate(loose.value);
+
+      return this;
     },
     serialize() {
       const serializedLoose = loose.serialize();
@@ -110,6 +121,9 @@ export function molecule(
     date(value: Date, name?: IdentityItem) {
       return create(name, atom.date, value, this);
     },
+    object(value: atom.PrimitiveObject, name?: IdentityItem) {
+      return create(name, atom.object, value, this);
+    },
     list(value: atom.PrimitiveList, name?: IdentityItem) {
       return create(name, atom.list, value, this);
     },
@@ -123,9 +137,9 @@ export function molecule(
       return runtime.atoms.persist(this);
     },
     async restore(): Promise<Molecule> {
-      // TODO :FIX
       const mol = await runtime.atoms.restore(this.identity);
-      return molecule(runtime, ...identity.key);
+      assert(mol, "molecule not found");
+      return mol as Molecule;
     },
     use(...names: string[]) {
       const items: AnyAtom[] = [];

@@ -51,7 +51,11 @@ Deno.test("identity.serialize", () => {
 
 Deno.test("identity.deserialize", () => {
   const myIdentity = id.identity("a", "b");
-  assertEquals(id.deserialize(myIdentity.serialize()).key, ["a", "b"], "deserialize works");
+  assertEquals(
+    id.deserialize(myIdentity.serialize()).key,
+    ["a", "b"],
+    "deserialize works",
+  );
 });
 
 Deno.test("identity.compact", () => {

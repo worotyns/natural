@@ -124,7 +124,9 @@ export const serialize = (identity: Identity): IdentitySerialized => {
 };
 
 // Deserialize from string
-export const deserialize = (rawIdentity: IdentitySerialized): IdentityInstance => {
+export const deserialize = (
+  rawIdentity: IdentitySerialized,
+): IdentityInstance => {
   if (!isSerializedIdentity(rawIdentity)) {
     throw new AssertionError("Not an identity");
   }

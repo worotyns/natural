@@ -3,6 +3,7 @@ import {
   identity,
   type IdentityInstance,
   type IdentityItem,
+  type IdentitySerialized,
 } from "./identity.ts";
 import { PrimitiveKind, PrimitiveValue } from "./primitive.ts";
 import * as atom from "./atom.ts";
@@ -112,27 +113,42 @@ export function createRepository(runtime: Runtime): Repository {
     return commitMsgs;
   };
 
-  const restore = async (identityToRestore: IdentityInstance) => {
+  const restore = async <T = unknown>(identityToRestore: IdentityInstance) => {
     const restoreSingleAtom = async (
       item: atom.SerializedAtom,
-      mol: Molecule,
+      mol?: Molecule,
     ) => {
       switch (item.t) {
-        case PrimitiveValue.Boolean: {
-        }
+        case PrimitiveValue.Boolean:
+          return atom.boolean(item.v as boolean, deserialize(item.i), mol);
         case PrimitiveValue.Number:
+          return atom.number(item.v as number, deserialize(item.i), mol);
         case PrimitiveValue.String:
+          return atom.string(item.v as string, deserialize(item.i), mol);
         case PrimitiveValue.List:
+          return atom.list(
+            item.v as atom.PrimitiveList,
+            deserialize(item.i),
+            mol,
+          );
         case PrimitiveValue.Date:
+          return atom.date(
+            new Date(item.v as number),
+            deserialize(item.i),
+            mol,
+          );
         case PrimitiveValue.Object:
+          return atom.object(
+            item.v as atom.PrimitiveObject,
+            deserialize(item.i),
+            mol,
+          );
         case PrimitiveValue.Map: {
           const temporaryMap = mol
             ? mol.map({})
-            : atom.map({}, identity(...item.i)); //.restore()
-          ///????;
+            : atom.map({}, deserialize(item.i));
 
           for (const [key, ident] of Object.entries(item.v)) {
-            console.log({key, ident});
             const mapItem = await runtime.get<atom.SerializedAtom>(
               deserialize(ident),
             );
@@ -143,8 +159,23 @@ export function createRepository(runtime: Runtime): Repository {
           }
           return temporaryMap;
         }
-        case PrimitiveValue.Collection:
-          break;
+        case PrimitiveValue.Collection: {
+          const temporaryCollection = mol
+            ? mol.collection([])
+            : atom.collection([], deserialize(item.i));
+
+          for (const ident of item.v as IdentitySerialized[]) {
+            const collItem = await runtime.get<atom.SerializedAtom>(
+              deserialize(ident),
+            );
+
+            temporaryCollection.add(
+              await restoreSingleAtom(collItem.val, mol) as atom.AnyAtom,
+            );
+          }
+
+          return temporaryCollection;
+        }
         default:
           throw new Error("Wtf");
       }
@@ -155,15 +186,19 @@ export function createRepository(runtime: Runtime): Repository {
         case PrimitiveKind.Identity:
           throw new RuntimeError("identity not supported in serialization");
         case PrimitiveKind.Atom:
-          console.log("item", item);
-          break;
+          return await restoreSingleAtom(item) as T;
         case PrimitiveKind.Molecule: {
-          const mol = molecule(createRepository(runtime));
+          const mol = molecule(
+            createRepository(runtime),
+            ...deserialize(item.i),
+          );
           const molMap = await restoreSingleAtom(item, mol);
-          return mol.deserialize(molMap as any) as any;
+          return mol.deserialize(molMap as atom.MapAtom) as T;
         }
         case PrimitiveKind.Cell:
           throw new RuntimeError("not implemented");
+        default:
+          return null;
       }
     };
 
