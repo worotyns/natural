@@ -189,6 +189,9 @@ export function createRepository(runtime: Runtime): Repository {
     };
 
     const restoreUnknown = async (item: PersistedAtom) => {
+      if (!item) {
+        return null;
+      }
       switch (item.k) {
         case PrimitiveKind.Identity:
           throw new RuntimeError("identity not supported in serialization");

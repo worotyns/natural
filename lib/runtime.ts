@@ -1,6 +1,8 @@
+import { VersionError } from "./errors.ts";
 import { deserialize, identity, type IdentityInstance } from "./identity.ts";
 import type { CommitResultMessage } from "./repository.ts";
 import { ulid } from "./ulid.ts";
+import { sprintf } from "./utils.ts";
 
 export type PersistReadyItem<T = unknown> = {
   key: string;
@@ -27,6 +29,12 @@ export const memoryRuntime: Runtime = {
   set: async (...items: PersistReadyItem[]) => {
     const commitMsgs: CommitResultMessage[] = [];
     for (const item of items) {
+      const currentItem = await store.get(item.key);
+      const isVersionError = item.ver && currentItem && currentItem.ver !== item.ver;
+      if (isVersionError) {
+        console.warn(sprintf('problem with update key "%s", previous version "%s", new version "%s"', item.key, currentItem.ver, item.ver));
+        throw new VersionError('Cannot commit transaction due to version errors');
+      }
       item.ver = ulid.new();
       await store.set(item.key, item);
       commitMsgs.push({
@@ -96,13 +104,21 @@ export const denoRuntime: Runtime = {
   set: async (...items: PersistReadyItem[]) => {
     const transaction = db.atomic();
     for (const item of items) {
+      
       if (item.ver) {
-        transaction.check(toAtomicCheck(item));
+        const check = toAtomicCheck(item);
+        transaction.check(check)
       }
       transaction.set(deserialize(item.key).key, item.val);
     }
 
     const result = await transaction.commit();
+
+    if (!result.ok) {
+      console.warn(items);
+      throw new VersionError('Cannot commit transaction due to version errors');
+    }
+
     return items.map(() => ({
       status: result.ok,
       versionstamp: "versionstamp" in result ? result.versionstamp : null,
