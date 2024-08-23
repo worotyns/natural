@@ -1,5 +1,5 @@
-// import { deserialize, type Molecule, organism, serialize } from "../lib/mod.ts";
-// import { assert } from "../deps.ts";
+// import { deserialize, type Molecule, organism, serialize } from ".mod.ts";
+// import { assert } from "./deps.ts";
 // import { testing } from "./testing.ts";
 
 // const dev = organism(["dev"], testing);

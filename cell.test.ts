@@ -8,7 +8,6 @@ Deno.test("cell", async () => {
   const repository = createRepository(memoryRuntime);
 
   const myCell = cell(identity("durable_counter"), (ctx) => {
-    
     ctx.set("calls", (ctx.get<number>("calls") || 0) + 1);
 
     ctx.run(identity("sample"), (ctx) => {

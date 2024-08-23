@@ -30,10 +30,20 @@ export const memoryRuntime: Runtime = {
     const commitMsgs: CommitResultMessage[] = [];
     for (const item of items) {
       const currentItem = await store.get(item.key);
-      const isVersionError = item.ver && currentItem && currentItem.ver !== item.ver;
+      const isVersionError = item.ver && currentItem &&
+        currentItem.ver !== item.ver;
       if (isVersionError) {
-        console.warn(sprintf('problem with update key "%s", previous version "%s", new version "%s"', item.key, currentItem.ver, item.ver));
-        throw new VersionError('Cannot commit transaction due to version errors');
+        console.warn(
+          sprintf(
+            'problem with update key "%s", previous version "%s", new version "%s"',
+            item.key,
+            currentItem.ver,
+            item.ver,
+          ),
+        );
+        throw new VersionError(
+          "Cannot commit transaction due to version errors",
+        );
       }
       item.ver = ulid.new();
       await store.set(item.key, item);
@@ -104,10 +114,9 @@ export const denoRuntime: Runtime = {
   set: async (...items: PersistReadyItem[]) => {
     const transaction = db.atomic();
     for (const item of items) {
-      
       if (item.ver) {
         const check = toAtomicCheck(item);
-        transaction.check(check)
+        transaction.check(check);
       }
       transaction.set(deserialize(item.key).key, item.val);
     }
@@ -116,7 +125,7 @@ export const denoRuntime: Runtime = {
 
     if (!result.ok) {
       console.warn(items);
-      throw new VersionError('Cannot commit transaction due to version errors');
+      throw new VersionError("Cannot commit transaction due to version errors");
     }
 
     return items.map(() => ({

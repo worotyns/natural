@@ -1,10 +1,9 @@
 import { InvalidStateError } from "./errors.ts";
 import { createLog, measure } from "./utils.ts";
-import { type AnyAtom } from "./atom.ts";
+import type { AnyAtom } from "./atom.ts";
 import { type Molecule, molecule } from "./molecule.ts";
-import type { Runtime } from "./runtime.ts";
 import type { IdentityInstance } from "./identity.ts";
-import { createRepository, Repository } from "./repository.ts";
+import type { Repository } from "./repository.ts";
 import { ulid } from "./ulid.ts";
 
 export type CellState = Molecule;
@@ -51,10 +50,10 @@ const createState = (
 
   const state = molecule(repository, ...identity.child(ulid.new()));
 
-  state.string(CellStatus.Running, 'status');
-  state.list([], 'logs');
-  state.object({}, 'results');
-  state.object({}, 'kv');
+  state.string(CellStatus.Running, "status");
+  state.list([], "logs");
+  state.object({}, "results");
+  state.object({}, "kv");
 
   return state;
 };

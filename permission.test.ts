@@ -1,5 +1,5 @@
 import { assertEquals } from "@std/assert";
-import { and, combine, flags, has, or } from "../lib/permission.ts";
+import { and, combine, flags, has, or } from "./permission.ts";
 
 Deno.test("permission", () => {
   const def = [

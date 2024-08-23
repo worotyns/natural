@@ -579,7 +579,9 @@ export function map(
         for (const key in this.value) {
           const atom = this.value[key];
           if (!atom.identity) {
-            throw new RuntimeError("Cannot serialize - MapAtom property value must be AnyAtom")
+            throw new RuntimeError(
+              "Cannot serialize - MapAtom property value must be AnyAtom",
+            );
           }
           const reference = atom.identity.serialize();
           if (reference in references) {
