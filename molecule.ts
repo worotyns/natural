@@ -23,6 +23,8 @@ export type Molecule = {
   named: atom.MapAtom;
   loose: atom.CollectionAtom;
   version: atom.Versionstamp;
+  
+  pick<T extends Array<AnyAtom> = Array<AnyAtom>>(predict: (atom: AnyAtom) => boolean): T;
   durable(identity: string, runner: (ctx: CellCtx) => Promise<void>): Cell;
   serialize(): atom.SerializedAtomWithReferences;
   toJSON(opts?: { pretty: boolean }): object;
@@ -210,6 +212,9 @@ export function molecule(
       const mol = await runtime.atoms.restore(this.identity);
       assert(mol, "molecule not found");
       return mol as Molecule;
+    },
+    pick<T extends Array<AnyAtom> = Array<AnyAtom>>(predict: (atom: AnyAtom) => boolean) {
+      return this.loose.valueOf().filter(predict) as T;
     },
     use<T extends Array<AnyAtom> = Array<AnyAtom>>(...names: string[]) {
       const items: AnyAtom[] = [];

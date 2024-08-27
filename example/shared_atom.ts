@@ -21,3 +21,6 @@ console.log({
   john: john.toJSON({ pretty: true }),
   joe: joe.toJSON({ pretty: true }),
 });
+
+const johnFeatures = john.pick(atom => atom.identity.startsWith("ns://dev/global_features"));
+console.log(johnFeatures.map(a => a.toJSON({ pretty: true })));
