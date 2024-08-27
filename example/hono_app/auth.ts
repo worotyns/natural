@@ -83,6 +83,8 @@ app.post("/auth/confirm", async (c) => {
   }, await env(data.nsid).restore());
 
   const [status, kv] = response.use<[StringAtom, ObjectAtom]>('status', 'kv');
+  
+  await authorization.registerActivity('user-login', {user_nsid: data.nsid});
 
   return c.json({
     response: status,
