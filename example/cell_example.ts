@@ -9,29 +9,28 @@ import {
 
 const johnAccount = temporary("ns://dev/accounts/john@doe.com").defaults({
   balance: 100,
-  transactions: []
+  transactions: [],
 });
 
 const janeAccount = temporary("ns://dev/accounts/jane@doe.com").defaults({
   balance: 200,
-  transactions: []
+  transactions: [],
 });
 
-await johnAccount.persist()
-await janeAccount.persist()
+await johnAccount.persist();
+await janeAccount.persist();
 
 const transactions = temporary("ns://dev/transactions");
 
 const doTransfer = transactions.durable("do-transaction", async (ctx) => {
   await ctx.run("transfer", async () => {
-
     const from = ctx.get<NamespacedIdentity>("from");
     assert(typeof from === "string", "from must be string");
 
     const to = ctx.get<NamespacedIdentity>("to");
     assert(typeof to === "string", "to must be string");
 
-    assert(from !== to, 'from and to cannot be same account');
+    assert(from !== to, "from and to cannot be same account");
 
     const amount = ctx.get("amount");
     assert(typeof amount === "number", "amount must be number");
@@ -50,8 +49,8 @@ const doTransfer = transactions.durable("do-transaction", async (ctx) => {
       "transactions",
     );
 
-    ctx.log(`before: ${from} balance: ${fromBalance.valueOf()}`)
-    ctx.log(`before: ${to} balance: ${toBalance.valueOf()}`)
+    ctx.log(`before: ${from} balance: ${fromBalance.valueOf()}`);
+    ctx.log(`before: ${to} balance: ${toBalance.valueOf()}`);
 
     if (fromBalance.value < amount) {
       throw new Error("not enough money");
@@ -60,8 +59,8 @@ const doTransfer = transactions.durable("do-transaction", async (ctx) => {
     fromBalance.mutate(fromBalance.value - amount);
     toBalance.mutate(toBalance.value + amount);
 
-    ctx.log(`after: ${from} balance: ${fromBalance.valueOf()}`)
-    ctx.log(`after: ${to} balance: ${toBalance.valueOf()}`)
+    ctx.log(`after: ${from} balance: ${fromBalance.valueOf()}`);
+    ctx.log(`after: ${to} balance: ${toBalance.valueOf()}`);
 
     fromTransactions.add(ctx.identity);
     toTransactions.add(ctx.identity);
@@ -79,6 +78,6 @@ const hmm = await doTransfer({
 const restoredJane = await janeAccount.restore();
 const restoredJohn = await johnAccount.restore();
 
-console.log(hmm.toJSON({ pretty: true }))
-console.log(restoredJane.toJSON({ pretty: true }))
-console.log(restoredJohn.toJSON({ pretty: true }))
+console.log(hmm.toJSON({ pretty: true }));
+console.log(restoredJane.toJSON({ pretty: true }));
+console.log(restoredJohn.toJSON({ pretty: true }));

@@ -58,6 +58,7 @@ export const memoryRuntime: Runtime = {
     }
     return commitMsgs;
   },
+  // deno-lint-ignore require-await
   scan: async (
     prefixNs: NamespacedIdentity,
     startNs: NamespacedIdentity,

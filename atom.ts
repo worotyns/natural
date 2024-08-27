@@ -569,16 +569,17 @@ export function map(
       },
       toJSON(this: MapAtom, opts: { pretty: boolean }) {
         return {
-          [serializeIdentity(this.identity, opts)]: Object.keys(this.value).reduce(
-            (res, key) => {
-              const atom = this.value[key];
-              return {
-                ...res,
-                ...atom.toJSON(opts),
-              };
-            },
-            {},
-          ),
+          [serializeIdentity(this.identity, opts)]: Object.keys(this.value)
+            .reduce(
+              (res, key) => {
+                const atom = this.value[key];
+                return {
+                  ...res,
+                  ...atom.toJSON(opts),
+                };
+              },
+              {},
+            ),
         };
       },
       serialize(this: MapAtom, references: SerializedAtomWithReferences = {}) {
@@ -627,6 +628,9 @@ export function map(
   );
 }
 
-function serializeIdentity(ident: NamespacedIdentity, opts?: {pretty: boolean}) {
-  return opts?.pretty ? ident.split('/').pop()! : ident;
+function serializeIdentity(
+  ident: NamespacedIdentity,
+  opts?: { pretty: boolean },
+) {
+  return opts?.pretty ? ident.split("/").pop()! : ident;
 }

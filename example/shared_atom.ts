@@ -18,6 +18,6 @@ joe.connect(betaFeatures);
 betaFeatures.positive();
 
 console.log({
-  john: john.toJSON({pretty: true}),
-  joe: joe.toJSON({pretty: true}),
+  john: john.toJSON({ pretty: true }),
+  joe: joe.toJSON({ pretty: true }),
 });
