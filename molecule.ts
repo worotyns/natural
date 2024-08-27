@@ -1,4 +1,4 @@
-import { ulid } from "./ulid.ts";
+import { type Ulid, ulid } from "./ulid.ts";
 import * as atom from "./atom.ts";
 import {
   combine,
@@ -15,6 +15,7 @@ import { denoRuntime, memoryRuntime } from "./runtime.ts";
 import { assert } from "./assert.ts";
 import type { Cell, CellCtx } from "./cell.ts";
 import { cell } from "./cell.ts";
+import { type Activity, type AnyActivityData, activity } from "./activity.ts";
 
 export type Molecule = {
   kind: PrimitiveKind.Molecule;
@@ -23,7 +24,6 @@ export type Molecule = {
   named: atom.MapAtom;
   loose: atom.CollectionAtom;
   version: atom.Versionstamp;
-  
   pick<T extends Array<AnyAtom> = Array<AnyAtom>>(predict: (atom: AnyAtom) => boolean): T;
   durable(identity: string, runner: (ctx: CellCtx) => Promise<void>): Cell;
   serialize(): atom.SerializedAtomWithReferences;
@@ -44,6 +44,8 @@ export type Molecule = {
   map(value: atom.AtomMap, name?: NamespacedIdentityItem): atom.MapAtom;
   persist: () => Promise<CommitResultMessage[]>;
   restore: () => Promise<Molecule>;
+  scanActivities: (lastUlid?: Ulid | NamespacedIdentity) => Promise<AnyActivityData[]>;
+  registerActivity: (type: string, payload: atom.PrimitiveObject) => Promise<NamespacedIdentity>;
   deserialize: (data: atom.MapAtom) => Molecule;
   setVersion: (version: string) => void;
   use<T extends Array<AnyAtom>>(...names: string[]): T;
@@ -90,6 +92,18 @@ export function molecule(
     loose,
     named,
     version: "",
+    async registerActivity(type: string, payload: atom.PrimitiveObject) {
+      const newActivity = activity(type, {
+        ...payload,
+        nsid: this.identity,
+      });
+      await runtime.log.add(newActivity);
+      return newActivity.identity
+    },
+    scanActivities(lastUlid?: Ulid | NamespacedIdentity) {
+      lastUlid = lastUlid || ulid.unixEpochStart();
+      return runtime.log.scan(lastUlid);
+    },
     durable(ident: string, callback: (ctx: CellCtx) => Promise<void>) {
       return cell(createIdentity(ident), callback, this.runtime);
     },
