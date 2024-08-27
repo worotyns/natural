@@ -1,6 +1,6 @@
-import { temporary } from "../mod.ts";
+import { temporary as molecule } from "../mod.ts";
 
-const team = temporary("ns://dev/team/xyz");
+const team = molecule("ns://dev/team/xyz");
 const teamUsers = team.list([], "users");
 
 team.object({

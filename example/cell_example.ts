@@ -4,15 +4,15 @@ import {
   type Molecule,
   type NamespacedIdentity,
   type NumberAtom,
-  temporary,
+  temporary as molecule,
 } from "../mod.ts";
 
-const johnAccount = temporary("ns://dev/accounts/john@doe.com").defaults({
+const johnAccount = molecule("ns://dev/accounts/john@doe.com").defaults({
   balance: 100,
   transactions: [],
 });
 
-const janeAccount = temporary("ns://dev/accounts/jane@doe.com").defaults({
+const janeAccount = molecule("ns://dev/accounts/jane@doe.com").defaults({
   balance: 200,
   transactions: [],
 });
@@ -20,7 +20,7 @@ const janeAccount = temporary("ns://dev/accounts/jane@doe.com").defaults({
 await johnAccount.persist();
 await janeAccount.persist();
 
-const transactions = temporary("ns://dev/transactions");
+const transactions = molecule("ns://dev/transactions");
 
 const doTransfer = transactions.durable("do-transaction", async (ctx) => {
   await ctx.run("transfer", async () => {
