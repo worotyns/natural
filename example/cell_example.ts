@@ -1,5 +1,12 @@
 import { deserialize } from "../identity.ts";
-import { identity, cell, createRepository, memoryRuntime, temporary, type Molecule } from "../mod.ts";
+import {
+  cell,
+  createRepository,
+  identity,
+  memoryRuntime,
+  type Molecule,
+  temporary,
+} from "../mod.ts";
 import { assert } from "../testing.ts";
 
 async function createUser(name: string) {
@@ -42,9 +49,9 @@ const evolution = cell(identity("make-friends"), async (ctx) => {
     console.log(
       invitingId,
       "Click to accept invitation",
-      `sending email with content: ${invitingId} has invited you to join them click to https://localhost:3000/${
-        ctx.identity.serialize()
-      }/resolve/${runCtx.get("invited.token")}`,
+      `sending email with content: ${invitingId} has invited you to join them click to https://localhost:3000/${ctx.identity.serialize()}/resolve/${
+        runCtx.get("invited.token")
+      }`,
     );
     runCtx.log("sent email with code");
   });
@@ -96,4 +103,4 @@ const afterClick = await evolution({
 
 console.log(afterClick.serialize());
 
-console.log(afterClick.toJSON())
+console.log(afterClick.toJSON());

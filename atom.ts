@@ -1,5 +1,5 @@
 import { RuntimeError } from "./errors.ts";
-import type { IdentityInstance, IdentitySerialized } from "./identity.ts";
+import type { NamespacedIdentity } from "./identity.ts";
 import type { Molecule } from "./molecule.ts";
 import { PrimitiveKind, PrimitiveValue } from "./primitive.ts";
 
@@ -34,7 +34,7 @@ export type Atom<
   ValueTypeKind extends PrimitiveValue = PrimitiveValue,
 > = {
   kind: PrimitiveKind.Atom;
-  identity: IdentityInstance;
+  identity: NamespacedIdentity;
   value: ValueType;
   valueKind: ValueTypeKind;
   version: Versionstamp;
@@ -44,12 +44,12 @@ export type Atom<
 export type AnyAtom = Atom<any> & BaseAtomHelpers<any> & BaseOrganismHelpers;
 
 export type SerializedAtomWithReferences = {
-  [i: IdentitySerialized]: SerializedAtom;
+  [i: NamespacedIdentity]: SerializedAtom;
 };
 
 export type SerializedAtom = {
   value: {
-    i: IdentitySerialized;
+    i: NamespacedIdentity;
     k: PrimitiveKind;
     v: Primitive;
     t: PrimitiveValue;
@@ -59,7 +59,7 @@ export type SerializedAtom = {
 
 // base atom interface that allows mutation and persistence
 type BaseAtomHelpers<V> = {
-  toJSON(): object;
+  toJSON(opts?: { pretty: boolean }): object;
   // drop references by structured clone
   valueOf(): V;
   // ready to store in database
@@ -83,7 +83,7 @@ type BaseOrganismHelpers = {
 export function atom<V, K extends PrimitiveValue, H extends BaseAtomHelpers<V>>(
   value: V,
   valueKind: K,
-  identity: IdentityInstance,
+  identity: NamespacedIdentity,
   version: Versionstamp,
   helpers: H,
   molecule?: Molecule,
@@ -119,7 +119,7 @@ export type StringAtom =
 // string atom with validation, guards and other helpers
 export function string(
   value: string,
-  identity: IdentityInstance,
+  identity: NamespacedIdentity,
   molecule?: Molecule,
 ): StringAtom {
   return atom<string, PrimitiveValue.String, StringAtomHelpers>(
@@ -134,17 +134,17 @@ export function string(
       mutate(this: StringAtom, newValue: string) {
         this.value = newValue;
       },
-      toJSON(this: StringAtom) {
+      toJSON(this: StringAtom, opts: { pretty: boolean }) {
         return {
-          [this.identity.serialize()]: this.valueOf(),
+          [serializeIdentity(this.identity, opts)]: this.valueOf(),
         };
       },
       serialize(this: StringAtom) {
         return {
-          [this.identity.serialize()]: {
+          [this.identity]: {
             version: this.version,
             value: {
-              i: this.identity.serialize(),
+              i: this.identity,
               t: this.valueKind,
               v: this.valueOf(),
               k: this.kind,
@@ -173,7 +173,7 @@ interface NumberAtomHelpers extends BaseAtomHelpers<number> {}
 // number atom with validation, guards and other helpers
 export function number(
   value: number,
-  identity: IdentityInstance,
+  identity: NamespacedIdentity,
   molecule?: Molecule,
 ): NumberAtom {
   return atom<number, PrimitiveValue.Number, NumberAtomHelpers>(
@@ -188,17 +188,17 @@ export function number(
       mutate(this: NumberAtom, newValue: number) {
         this.value = newValue;
       },
-      toJSON(this: NumberAtom) {
+      toJSON(this: NumberAtom, opts: { pretty: boolean }) {
         return {
-          [this.identity.serialize()]: this.valueOf(),
+          [serializeIdentity(this.identity, opts)]: this.valueOf(),
         };
       },
       serialize(this: NumberAtom) {
         return {
-          [this.identity.serialize()]: {
+          [this.identity]: {
             version: this.version,
             value: {
-              i: this.identity.serialize(),
+              i: this.identity,
               t: this.valueKind,
               v: this.valueOf(),
               k: this.kind,
@@ -231,7 +231,7 @@ interface BooleanAtomHelpers extends BaseAtomHelpers<boolean> {
 // boolean atom with validation, guards and other helpers
 export function boolean(
   value: boolean,
-  identity: IdentityInstance,
+  identity: NamespacedIdentity,
   molecule?: Molecule,
 ): BooleanAtom {
   return atom<boolean, PrimitiveValue.Boolean, BooleanAtomHelpers>(
@@ -246,17 +246,17 @@ export function boolean(
       mutate(this: BooleanAtom, newValue: boolean) {
         this.value = newValue;
       },
-      toJSON(this: BooleanAtom) {
+      toJSON(this: BooleanAtom, opts: { pretty: boolean }) {
         return {
-          [this.identity.serialize()]: this.valueOf(),
+          [serializeIdentity(this.identity, opts)]: this.valueOf(),
         };
       },
       serialize(this: BooleanAtom) {
         return {
-          [this.identity.serialize()]: {
+          [this.identity]: {
             version: this.version,
             value: {
-              i: this.identity.serialize(),
+              i: this.identity,
               t: this.valueKind,
               v: this.valueOf(),
               k: this.kind,
@@ -285,12 +285,15 @@ export function boolean(
 interface DateAtomHelpers extends BaseAtomHelpers<Date> {}
 
 // interface of date atom with all helpers
-export type DateAtom = Atom<Date, PrimitiveValue.Date> & DateAtomHelpers;
+export type DateAtom =
+  & Atom<Date, PrimitiveValue.Date>
+  & DateAtomHelpers
+  & BaseOrganismHelpers;
 
 // date atom with validation, guards and other helpers
 export function date(
   value: Date,
-  identity: IdentityInstance,
+  identity: NamespacedIdentity,
   molecule?: Molecule,
 ): DateAtom {
   return atom<Date, PrimitiveValue.Date, DateAtomHelpers>(
@@ -305,17 +308,17 @@ export function date(
       mutate(this: DateAtom, newValue: Date) {
         this.value = newValue;
       },
-      toJSON(this: DateAtom) {
+      toJSON(this: DateAtom, opts: { pretty: boolean }) {
         return {
-          [this.identity.serialize()]: this.valueOf(),
+          [serializeIdentity(this.identity, opts)]: this.valueOf(),
         };
       },
       serialize(this: DateAtom) {
         return {
-          [this.identity.serialize()]: {
+          [this.identity]: {
             version: this.version,
             value: {
-              i: this.identity.serialize(),
+              i: this.identity,
               t: this.valueKind,
               v: this.valueOf().toISOString(),
               k: this.kind,
@@ -337,12 +340,13 @@ interface ObjectAtomHelpers extends BaseAtomHelpers<PrimitiveObject> {}
 // interface of object atom with all helpers
 export type ObjectAtom =
   & Atom<PrimitiveObject, PrimitiveValue.Object>
-  & ObjectAtomHelpers;
+  & ObjectAtomHelpers
+  & BaseOrganismHelpers;
 
 // object atom with validation, guards and other helpers
 export function object(
   value: PrimitiveObject,
-  identity: IdentityInstance,
+  identity: NamespacedIdentity,
   molecule?: Molecule,
 ): ObjectAtom {
   return atom<PrimitiveObject, PrimitiveValue.Object, ObjectAtomHelpers>(
@@ -357,17 +361,17 @@ export function object(
       mutate(this: ObjectAtom, newValue: PrimitiveObject) {
         this.value = newValue;
       },
-      toJSON(this: ObjectAtom) {
+      toJSON(this: ObjectAtom, opts: { pretty: boolean }) {
         return {
-          [this.identity.serialize()]: this.valueOf(),
+          [serializeIdentity(this.identity, opts)]: this.valueOf(),
         };
       },
       serialize(this: ObjectAtom) {
         return {
-          [this.identity.serialize()]: {
+          [this.identity]: {
             version: this.version,
             value: {
-              i: this.identity.serialize(),
+              i: this.identity,
               t: this.valueKind,
               v: this.valueOf(),
               k: this.kind,
@@ -398,7 +402,7 @@ interface ListAtomHelpers extends BaseAtomHelpers<PrimitiveList> {
 // atom list, guards and other helpers
 export function list(
   value: PrimitiveList,
-  identity: IdentityInstance,
+  identity: NamespacedIdentity,
   molecule?: Molecule,
 ): ListAtom {
   return atom<PrimitiveList, PrimitiveValue.List, ListAtomHelpers>(
@@ -416,17 +420,17 @@ export function list(
       mutate(this: ListAtom, newValue: PrimitiveList) {
         this.value = newValue;
       },
-      toJSON(this: ListAtom) {
+      toJSON(this: ListAtom, opts: { pretty: boolean }) {
         return {
-          [this.identity.serialize()]: this.valueOf(),
+          [serializeIdentity(this.identity, opts)]: this.valueOf(),
         };
       },
       serialize(this: ListAtom) {
         return {
-          [this.identity.serialize()]: {
+          [this.identity]: {
             version: this.version,
             value: {
-              i: this.identity.serialize(),
+              i: this.identity,
               t: this.valueKind,
               v: this.valueOf(),
               k: this.kind,
@@ -451,13 +455,14 @@ export type CollectionAtom =
 
 // interface of collection atom with all helpers
 interface CollectionAtomHelpers extends BaseAtomHelpers<AtomCollection> {
-  add(atom: AnyAtom): void;
+  add(atom: AnyAtom): void; // should create new atom as "builder" or sth?
+  // push should just add new atom
 }
 
 // atom collection, guards and other helpers
 export function collection(
   value: AtomCollection,
-  identity: IdentityInstance,
+  identity: NamespacedIdentity,
   molecule?: Molecule,
 ): CollectionAtom {
   return atom<AtomCollection, PrimitiveValue.Collection, CollectionAtomHelpers>(
@@ -475,10 +480,10 @@ export function collection(
       add(this: CollectionAtom, atom: AnyAtom) {
         this.value.push(atom);
       },
-      toJSON(this: CollectionAtom) {
+      toJSON(this: CollectionAtom, opts: { pretty: boolean }) {
         return {
-          [this.identity.serialize()]: this.valueOf()
-            .map(item => item.toJSON()),
+          [serializeIdentity(this.identity, opts)]: this.valueOf()
+            .map((item) => item.toJSON(opts)),
         };
       },
       serialize(
@@ -486,7 +491,7 @@ export function collection(
         references: SerializedAtomWithReferences = {},
       ) {
         for (const atom of this.value) {
-          const reference = atom.identity.serialize();
+          const reference = atom.identity;
           if (reference in references) {
             throw new RuntimeError(
               "Cannot serialize atoms, with same identity: " + reference,
@@ -498,10 +503,10 @@ export function collection(
 
         return {
           ...references,
-          [this.identity.serialize()]: {
+          [this.identity]: {
             version: this.version,
             value: {
-              i: this.identity.serialize(),
+              i: this.identity,
               t: this.valueKind,
               v: Object.keys(references),
               k: this.kind,
@@ -535,7 +540,7 @@ interface MapAtomHelpers extends BaseAtomHelpers<AtomMap> {
 // atom collection, guards and other helpers
 export function map(
   value: AtomMap,
-  identity: IdentityInstance,
+  identity: NamespacedIdentity,
   molecule?: Molecule,
 ): MapAtom {
   return atom<AtomMap, PrimitiveValue.Map, MapAtomHelpers>(
@@ -562,14 +567,14 @@ export function map(
       mutate(this: MapAtom, newValue: AtomMap) {
         this.value = newValue;
       },
-      toJSON(this: MapAtom) {
+      toJSON(this: MapAtom, opts: { pretty: boolean }) {
         return {
-          [this.identity.serialize()]: Object.keys(this.value).reduce(
+          [serializeIdentity(this.identity, opts)]: Object.keys(this.value).reduce(
             (res, key) => {
               const atom = this.value[key];
               return {
                 ...res,
-                ...atom.toJSON(),
+                ...atom.toJSON(opts),
               };
             },
             {},
@@ -584,28 +589,30 @@ export function map(
               "Cannot serialize - MapAtom property value must be AnyAtom",
             );
           }
-          const reference = atom.identity.serialize();
+          const reference = atom.identity;
           if (reference in references) {
             throw new RuntimeError(
               "Cannot serialize atoms, with same identity: " + reference,
             );
           }
-          references[key] = atom.serialize(references)[reference];
+          references[key as keyof typeof references] =
+            atom.serialize(references)[reference];
         }
 
         return {
           ...Object.keys(references).reduce((res, val) => {
-            res[references[val].value.i] = references[val];
+            res[references[val as keyof typeof references].value.i] =
+              references[val as keyof typeof references];
             return res;
           }, {} as Record<string, SerializedAtom>),
-          [this.identity.serialize()]: {
+          [this.identity]: {
             version: this.version,
             value: {
-              i: this.identity.serialize(),
+              i: this.identity,
               t: this.valueKind,
               k: this.kind,
               v: Object.keys(this.value).reduce((res, val) => {
-                res[val] = references[val].value.i;
+                res[val] = references[val as keyof typeof references].value.i;
                 return res;
               }, {} as Record<string, string>),
             },
@@ -618,4 +625,8 @@ export function map(
     },
     molecule,
   );
+}
+
+function serializeIdentity(ident: NamespacedIdentity, opts?: {pretty: boolean}) {
+  return opts?.pretty ? ident.split('/').pop()! : ident;
 }

@@ -1,13 +1,6 @@
-import { assert } from "../assert.ts";
-import { identity } from "../identity.ts";
-import {
-  createRepository,
-  denoRuntime,
-  type ListAtom,
-  persistent,
-} from "../mod.ts";
+import { temporary } from "../mod.ts";
 
-const team = persistent("dev", "team", "xyz");
+const team = temporary("ns://dev/team/xyz");
 const teamUsers = team.list([], "users");
 
 team.object({
@@ -30,26 +23,3 @@ metadata.mutate({
   ...metadata.value,
   deletedAt: Date.now(),
 });
-
-await metadata.persist();
-// console.log(team.toJSON());
-
-// I can directly get from repository and persist
-const repository = createRepository(denoRuntime);
-const user = await repository.atoms.restore<ListAtom>(
-  identity("dev", "team", "xyz", "atoms", "users"),
-);
-
-assert(user, "user atom exists in db");
-// console.log(user.toJSON());
-user.add("third@email.com");
-
-// It's not from molecule so i cannot use .persist() method - now version mismatched
-await repository.atoms.persist(user);
-console.log(user.toJSON());
-console.log(team.toJSON());
-
-// Now when I try to store changes from molecule, then I will get exception due to version
-// teamUsers.add('conflict@email.com')
-// teamUsers.persist();
-// console.log(team.toJSON());

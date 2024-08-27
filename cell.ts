@@ -2,9 +2,13 @@ import { InvalidStateError } from "./errors.ts";
 import { createLog, measure } from "./utils.ts";
 import type { AnyAtom } from "./atom.ts";
 import { type Molecule, molecule } from "./molecule.ts";
-import type { IdentityInstance } from "./identity.ts";
 import type { Repository } from "./repository.ts";
 import { ulid } from "./ulid.ts";
+import {
+  combine,
+  type NamespacedIdentity,
+  type NamespacedIdentityItem,
+} from "./identity.ts";
 
 export type CellState = Molecule;
 
@@ -17,17 +21,17 @@ enum CellResultState {
 type WaitForKey = string;
 
 export interface CellCtx {
-  identity: IdentityInstance;
+  identity: NamespacedIdentity;
   repository: Repository;
   log(msg: string): Promise<void>;
   waitFor<T = unknown>(key: WaitForKey): Promise<T>;
   persist(...items: Array<AnyAtom | Molecule>): Promise<void>;
-  restore<T = unknown>(identity: IdentityInstance): Promise<T | null>;
+  restore<T = unknown>(identity: NamespacedIdentity): Promise<T | null>;
   set<T = unknown>(key: string, val: T): Promise<void>;
   get<T = unknown>(key: string): T | null;
   cancel(msg: string): Promise<void>;
   run: (
-    identity: IdentityInstance,
+    identity: NamespacedIdentityItem,
     callback: (ctx: CellCtx) => Promise<unknown>,
   ) => Promise<unknown>;
 }
@@ -40,7 +44,7 @@ enum CellStatus {
 }
 
 const createState = (
-  identity: IdentityInstance,
+  identity: NamespacedIdentity,
   repository: Repository,
   stateMolecule?: Molecule,
 ): CellState => {
@@ -48,7 +52,7 @@ const createState = (
     return stateMolecule;
   }
 
-  const state = molecule(repository, ...identity.child(ulid.new()));
+  const state = molecule(repository, combine(identity, ulid.new()));
 
   state.string(CellStatus.Running, "status");
   state.list([], "logs");
@@ -78,7 +82,7 @@ const createContext = (
       repository.atoms.persist(...items);
       return Promise.resolve();
     },
-    restore: <T = unknown>(identity: IdentityInstance): Promise<T | null> => {
+    restore: <T = unknown>(identity: NamespacedIdentity): Promise<T | null> => {
       return Promise.resolve(repository.atoms.restore(identity) as T | null);
     },
     set: <T = unknown>(key: string, val: unknown) => {
@@ -111,10 +115,10 @@ const createContext = (
       return Promise.resolve();
     },
     run: async (
-      identity: IdentityInstance,
+      identity: NamespacedIdentityItem,
       callback: (ctx: CellCtx) => Promise<unknown>,
     ): Promise<unknown> => {
-      const key = identity.serialize();
+      const key = identity;
       const cached = results.value[key];
 
       if (cached && cached.state === CellResultState.Success) {
@@ -164,7 +168,7 @@ export type Cell = (
 ) => Promise<CellState>;
 
 export const cell = (
-  identity: IdentityInstance,
+  identity: NamespacedIdentity,
   runner: (ctx: CellCtx) => Promise<void>,
   repository: Repository,
 ): Cell => {
@@ -180,7 +184,7 @@ export const cell = (
       // TODO: to przekminic? bo w suie to mozna zrobic dedykowane bledy pod listenera? zeby nie odjebywal na koncu procesu
       throw InvalidStateError.format(
         "Cannot run cancelled workflow: %s",
-        state.identity.serialize(),
+        state.identity,
       );
     }
 

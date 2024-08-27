@@ -1,9 +1,8 @@
 import {
-  deserialize,
+  combine,
   identity,
-  type IdentityInstance,
-  type IdentityItem,
-  type IdentitySerialized,
+  type NamespacedIdentity,
+  type NamespacedIdentityItem,
 } from "./identity.ts";
 import { PrimitiveKind, PrimitiveValue } from "./primitive.ts";
 import * as atom from "./atom.ts";
@@ -16,7 +15,7 @@ import { RuntimeError } from "./errors.ts";
 
 export type IdentifiableAndValuedOfAndKindPrimitive = {
   kind: PrimitiveKind;
-  identity: IdentityInstance;
+  identity: NamespacedIdentity;
   serialize: () => atom.SerializedAtom;
 };
 
@@ -25,14 +24,14 @@ export type NaturalRepo = {
     ...items: Array<atom.AnyAtom | Molecule>
   ) => Promise<CommitResultMessage[]>;
   restore: <T = unknown>(
-    identifier: IdentityInstance,
-    partialAtoms?: IdentityItem[],
+    identifier: NamespacedIdentity,
+    partialAtoms?: NamespacedIdentityItem[],
   ) => Promise<T | null>;
 };
 
 export type ActivityRepo = {
   add: (...items: Array<AnyActivity>) => Promise<void>;
-  scan: (lastUlid: Ulid | IdentityInstance) => Promise<AnyActivityData[]>;
+  scan: (lastUlid: Ulid | NamespacedIdentity) => Promise<AnyActivityData[]>;
 };
 
 export type Repository = {
@@ -49,25 +48,26 @@ export function createRepository(runtime: Runtime): Repository {
   const add = async (...items: Array<AnyActivity>) => {
     for (const item of items) {
       await runtime.set({
-        key: item.identity.serialize(),
+        key: item.identity,
         val: item.value,
         ver: "",
       });
     }
   };
 
-  const scan = async (rawUlid: Ulid | IdentityInstance) => {
+  const scan = async (rawUlid: Ulid | NamespacedIdentity) => {
     const activity: AnyActivityData[] = [];
-    const startFrom = Array.isArray(rawUlid) ? rawUlid.at(1)! : rawUlid;
-    assert(startFrom, "startFrom is not defined");
+    assert(rawUlid, "startFrom is not defined");
+
+    const prefix = identity("activity");
+    const startFrom = rawUlid.startsWith("ns://")
+      ? rawUlid as NamespacedIdentity
+      : combine(prefix, rawUlid);
 
     for (
       const item of await runtime.scan<AnyActivityData>(
-        identity("activity"),
-        identity(
-          "activity",
-          startFrom,
-        ),
+        prefix,
+        startFrom,
         100,
       )
     ) {
@@ -85,7 +85,7 @@ export function createRepository(runtime: Runtime): Repository {
         case PrimitiveKind.Molecule:
           for (const [key, value] of Object.entries(item.serialize())) {
             await runtime.set({
-              key: key,
+              key: key as NamespacedIdentity,
               val: value.value,
               ver: value.version,
             });
@@ -95,7 +95,7 @@ export function createRepository(runtime: Runtime): Repository {
         case PrimitiveKind.Atom:
           for (const [key, value] of Object.entries(item.serialize())) {
             const [result] = await runtime.set({
-              key: key,
+              key: key as NamespacedIdentity,
               val: value.value,
               ver: value.version,
             });
@@ -109,42 +109,44 @@ export function createRepository(runtime: Runtime): Repository {
     return commitMsgs;
   };
 
-  const restore = async <T = unknown>(identityToRestore: IdentityInstance) => {
+  const restore = async <T = unknown>(
+    identityToRestore: NamespacedIdentity,
+  ) => {
     const restoreSingleAtom = async (
       item: PersistedAtom,
       mol?: Molecule,
     ) => {
       switch (item.t) {
         case PrimitiveValue.Boolean:
-          return atom.boolean(item.v as boolean, deserialize(item.i), mol);
+          return atom.boolean(item.v as boolean, item.i, mol);
         case PrimitiveValue.Number:
-          return atom.number(item.v as number, deserialize(item.i), mol);
+          return atom.number(item.v as number, item.i, mol);
         case PrimitiveValue.String:
-          return atom.string(item.v as string, deserialize(item.i), mol);
+          return atom.string(item.v as string, item.i, mol);
         case PrimitiveValue.List:
           return atom.list(
             item.v as atom.PrimitiveList,
-            deserialize(item.i),
+            item.i,
             mol,
           );
         case PrimitiveValue.Date:
           return atom.date(
             new Date(item.v as number),
-            deserialize(item.i),
+            item.i,
             mol,
           );
         case PrimitiveValue.Object:
           return atom.object(
             item.v as atom.PrimitiveObject,
-            deserialize(item.i),
+            item.i,
             mol,
           );
         case PrimitiveValue.Map: {
-          const temporaryMap = atom.map({}, deserialize(item.i), mol);
+          const temporaryMap = atom.map({}, item.i, mol);
 
           for (const [key, ident] of Object.entries(item.v)) {
             const mapItem = await runtime.get<PersistedAtom>(
-              deserialize(ident),
+              ident,
             );
 
             if (!mapItem) {
@@ -162,13 +164,13 @@ export function createRepository(runtime: Runtime): Repository {
         case PrimitiveValue.Collection: {
           const temporaryCollection = atom.collection(
             [],
-            deserialize(item.i),
+            item.i,
             mol,
           );
 
-          for (const ident of item.v as IdentitySerialized[]) {
+          for (const ident of item.v as NamespacedIdentity[]) {
             const collItem = await runtime.get<PersistedAtom>(
-              deserialize(ident),
+              ident,
             );
 
             if (!collItem) {
@@ -200,7 +202,7 @@ export function createRepository(runtime: Runtime): Repository {
         case PrimitiveKind.Molecule: {
           const mol = molecule(
             createRepository(runtime),
-            ...deserialize(item.i),
+            item.i,
           );
           const molMap = await restoreSingleAtom(item, mol);
           return mol.deserialize(molMap as atom.MapAtom) as T;

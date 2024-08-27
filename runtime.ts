@@ -1,20 +1,24 @@
+import type { Versionstamp } from "./atom.ts";
 import { VersionError } from "./errors.ts";
-import { deserialize, identity, type IdentityInstance } from "./identity.ts";
+import { identity } from "./identity.ts";
+import type { NamespacedIdentity } from "./mod.ts";
 import type { CommitResultMessage } from "./repository.ts";
 import { ulid } from "./ulid.ts";
 import { sprintf } from "./utils.ts";
 
 export type PersistReadyItem<T = unknown> = {
-  key: string;
+  key: NamespacedIdentity;
   val: T;
-  ver: string;
+  ver: Versionstamp;
 };
 export type Runtime = {
   set(...items: Array<PersistReadyItem>): Promise<CommitResultMessage[]>;
-  get<T = unknown>(key: IdentityInstance): Promise<PersistReadyItem<T> | null>;
+  get<T = unknown>(
+    key: NamespacedIdentity,
+  ): Promise<PersistReadyItem<T> | null>;
   scan<T = unknown>(
-    prefix: IdentityInstance,
-    start: IdentityInstance,
+    prefix: NamespacedIdentity,
+    start: NamespacedIdentity,
     limit: number,
   ): Promise<T[]>;
 };
@@ -22,8 +26,8 @@ export type Runtime = {
 const store = new Map();
 
 export const memoryRuntime: Runtime = {
-  get: async (key: IdentityInstance) => {
-    const item = await store.get(key.serialize());
+  get: async (key: NamespacedIdentity) => {
+    const item = await store.get(key);
     return item;
   },
   set: async (...items: PersistReadyItem[]) => {
@@ -55,19 +59,21 @@ export const memoryRuntime: Runtime = {
     return commitMsgs;
   },
   scan: async (
-    prefix: IdentityInstance,
-    start: IdentityInstance,
+    prefixNs: NamespacedIdentity,
+    startNs: NamespacedIdentity,
     limit: number,
   ) => {
+    const start = deserialize(startNs);
+
     const items = [];
     for (const [_, { key, val }] of store) {
       if (
-        key.startsWith(prefix.serialize())
+        key.startsWith(prefixNs)
       ) {
         if (start && start.key.length) {
           if (
             key.localeCompare(
-              start.serialize(),
+              start,
             ) > 0
           ) {
             items.push(val);
@@ -98,15 +104,16 @@ const toAtomicCheck = (item: PersistReadyItem): Deno.AtomicCheck => {
 };
 
 export const denoRuntime: Runtime = {
-  get: async <T = unknown>(key: IdentityInstance) => {
-    const item = await db.get(key.key);
+  get: async <T = unknown>(key: NamespacedIdentity) => {
+    const denoKey = deserialize(key);
+    const item = await db.get(denoKey.key);
 
     if (!item) {
       return null;
     }
 
     return {
-      key: identity(...item.key.map((i) => i.toString())).serialize(),
+      key: identity(...item.key.map((i) => i.toString())),
       val: item.value as T,
       ver: item.versionstamp,
     } as PersistReadyItem<T>;
@@ -134,10 +141,13 @@ export const denoRuntime: Runtime = {
     })) as CommitResultMessage[];
   },
   scan: async <T = unknown>(
-    prefix: IdentityInstance,
-    start: IdentityInstance,
+    prefixNs: NamespacedIdentity,
+    startNs: NamespacedIdentity,
     limit: number,
   ) => {
+    const prefix = deserialize(prefixNs);
+    const start = deserialize(startNs);
+
     const activity: T[] = [];
 
     for await (
@@ -154,3 +164,12 @@ export const denoRuntime: Runtime = {
     return activity;
   },
 };
+
+function deserialize(key: NamespacedIdentity) {
+  const [ns, path] = key.split("://");
+  return {
+    namespace: ns,
+    path,
+    key: path.split("/"),
+  };
+}

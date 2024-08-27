@@ -1,17 +1,23 @@
-import { identity } from "../identity.ts";
-import { boolean, temporary } from "../mod.ts";
+import { temporary } from "../mod.ts";
 
-const beteFeatures = boolean(false, identity("dev", "global_features", "ui_visible_beta_features"));
+const globalFeatures = temporary("ns://dev/global_features");
+const betaFeatures = globalFeatures.boolean(false, "ui_visible_beta_features");
 
-const john = temporary("dev", "users", "john@doe.com");
-john.loose.add(beteFeatures);
+const john = temporary("ns://dev/users/john@doe.com").defaults({
+  friends: [],
+});
 
-const joe = temporary("dev", "users", "joe@doe.com");
-joe.loose.add(beteFeatures);
+john.connect(betaFeatures);
 
-beteFeatures.positive()
+const joe = temporary("ns://dev/users/joe@doe.com").defaults({
+  friends: ["kamala@email.com"],
+});
+
+joe.connect(betaFeatures);
+
+betaFeatures.positive();
 
 console.log({
-  john: john.toJSON(),
-  joe: joe.toJSON(),
-})
+  john: john.toJSON({pretty: true}),
+  joe: joe.toJSON({pretty: true}),
+});

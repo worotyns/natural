@@ -1,68 +1,74 @@
 import { ulid } from "./ulid.ts";
 import * as atom from "./atom.ts";
 import {
+  combine,
   identity as createIdentity,
-  type IdentityInstance,
-  type IdentityItem,
+  type NamespacedIdentity,
+  type NamespacedIdentityItem,
 } from "./identity.ts";
 import type { AnyAtom } from "./atom.ts";
 import type { CommitResultMessage, Repository } from "./repository.ts";
-import { AssertionError } from "./errors.ts";
+import { AssertionError, RuntimeError } from "./errors.ts";
 import { createRepository } from "./repository.ts";
 import { PrimitiveKind, PrimitiveValue } from "./primitive.ts";
 import { denoRuntime, memoryRuntime } from "./runtime.ts";
 import { assert } from "./assert.ts";
+import type { Cell, CellCtx } from "./cell.ts";
+import { cell } from "./cell.ts";
 
 export type Molecule = {
   kind: PrimitiveKind.Molecule;
-  identity: IdentityInstance;
+  identity: NamespacedIdentity;
   runtime: Repository;
   named: atom.MapAtom;
   loose: atom.CollectionAtom;
   version: atom.Versionstamp;
+  durable(identity: string, runner: (ctx: CellCtx) => Promise<void>): Cell;
   serialize(): atom.SerializedAtomWithReferences;
-  toJSON(): object;
-  string(value: string, name?: IdentityItem): atom.StringAtom;
-  number(value: number, name?: IdentityItem): atom.NumberAtom;
-  boolean(value: boolean, name?: IdentityItem): atom.BooleanAtom;
-  date(value: Date, name?: IdentityItem): atom.DateAtom;
+  toJSON(opts?: { pretty: boolean }): object;
+  string(value: string, name?: NamespacedIdentityItem): atom.StringAtom;
+  number(value: number, name?: NamespacedIdentityItem): atom.NumberAtom;
+  boolean(value: boolean, name?: NamespacedIdentityItem): atom.BooleanAtom;
+  date(value: Date, name?: NamespacedIdentityItem): atom.DateAtom;
   object(
     value: atom.PrimitiveObject,
-    name?: IdentityItem,
+    name?: NamespacedIdentityItem,
   ): atom.ObjectAtom;
-  list(value: atom.PrimitiveList, name?: IdentityItem): atom.ListAtom;
+  list(value: atom.PrimitiveList, name?: NamespacedIdentityItem): atom.ListAtom;
   collection(
     value: atom.AtomCollection,
-    name?: IdentityItem,
+    name?: NamespacedIdentityItem,
   ): atom.CollectionAtom;
-  map(value: atom.AtomMap, name?: IdentityItem): atom.MapAtom;
+  map(value: atom.AtomMap, name?: NamespacedIdentityItem): atom.MapAtom;
   persist: () => Promise<CommitResultMessage[]>;
   restore: () => Promise<Molecule>;
   deserialize: (data: atom.MapAtom) => Molecule;
   setVersion: (version: string) => void;
-  use(...names: string[]): AnyAtom[];
+  use<T extends Array<AnyAtom>>(...names: string[]): T;
+  connect(atom: AnyAtom): void;
+  defaults(defaultValues: Record<string, atom.Primitive>): Molecule;
 };
 
 // for testing purposes or empheral use
-export function temporary(...name: IdentityItem[]): Molecule {
-  return molecule(createRepository(memoryRuntime), ...name);
+export function temporary(nsid: NamespacedIdentity): Molecule {
+  return molecule(createRepository(memoryRuntime), nsid);
 }
 
 // for production purposes - with durable store
-export function persistent(...name: IdentityItem[]): Molecule {
-  return molecule(createRepository(denoRuntime), ...name);
+export function persistent(nsid: NamespacedIdentity): Molecule {
+  return molecule(createRepository(denoRuntime), nsid);
 }
 
 // base molecule item can be used with runtime, must be named before use
 export function molecule(
   runtime: Repository,
-  ...name: IdentityItem[]
+  nsid: NamespacedIdentity,
 ): Molecule {
-  const identity = createIdentity(...name);
-  const named = atom.map({}, identity.child("mol", "named"));
-  const loose = atom.collection([], identity.child("mol", "loose"));
+  const identity = createIdentity(nsid);
+  const named = atom.map({}, combine(identity, "mol", "named"));
+  const loose = atom.collection([], combine(identity, "mol", "loose"));
   const create = (
-    name: IdentityItem | undefined,
+    name: NamespacedIdentityItem | undefined,
     // deno-lint-ignore ban-types
     factory: Function,
     value: unknown,
@@ -70,7 +76,7 @@ export function molecule(
   ) => {
     const isNamed = !!name;
     name = name || ulid.new();
-    const newAtom = factory(value, identity.child("atoms", name), mol);
+    const newAtom = factory(value, combine(identity, "atoms", name), mol);
     isNamed ? named.set(name, newAtom) : loose.add(newAtom);
     return newAtom;
   };
@@ -82,6 +88,57 @@ export function molecule(
     loose,
     named,
     version: "",
+    durable(ident: string, callback: (ctx: CellCtx) => Promise<void>) {
+      return cell(createIdentity(ident), callback, this.runtime);
+    },
+    defaults(schema) {
+      for (const key in schema) {
+        if (this.named.has(key)) {
+          continue;
+        } else {
+          switch (typeof schema[key]) {
+            case "string":
+              this.named.set(key, this.string(schema[key], key));
+              break;
+            case "number":
+              this.named.set(key, this.number(schema[key], key));
+              break;
+            case "boolean":
+              this.named.set(key, this.boolean(schema[key], key));
+              break;
+            case "object":
+              if (Array.isArray(schema[key])) {
+                this.named.set(key, this.list(schema[key], key));
+              } else if (schema[key] instanceof Date) {
+                this.named.set(key, this.date(schema[key], key));
+              } else if (
+                typeof schema[key] === "object" && schema[key] !== null
+              ) {
+                this.named.set(key, this.object(schema[key], key));
+              } else if (
+                typeof schema[key] === "object" &&
+                schema[key as string] instanceof Map
+              ) {
+                this.named.set(
+                  key,
+                  this.object(Object.fromEntries(schema[key]), key),
+                );
+              } else {
+                throw new RuntimeError(
+                  "cannot resolve object type from given value",
+                );
+              }
+              break;
+            default:
+              throw new RuntimeError("type not supported in defaults()");
+          }
+        }
+      }
+      return this;
+    },
+    connect(atom: AnyAtom) {
+      this.loose.add(atom);
+    },
     setVersion(version: string) {
       this.version = version;
     },
@@ -96,12 +153,10 @@ export function molecule(
 
       return this;
     },
-    toJSON() {
+    toJSON(opts?: { pretty: boolean }): object {
       return {
-        [this.identity.serialize()]: {
-          ...this.loose.toJSON(),
-          ...this.named.toJSON(),
-        },
+        ...this.loose.toJSON(opts),
+        ...this.named.toJSON(opts),
       };
     },
     serialize() {
@@ -110,13 +165,13 @@ export function molecule(
       return {
         ...serializedNamed,
         ...serializedLoose,
-        [this.identity.serialize()]: {
+        [this.identity]: {
           version: this.version,
           value: {
-            i: this.identity.serialize(),
+            i: this.identity,
             v: {
-              loose: this.loose.identity.serialize(),
-              named: this.named.identity.serialize(),
+              loose: this.loose.identity,
+              named: this.named.identity,
             },
             t: PrimitiveValue.Map,
             k: this.kind,
@@ -124,28 +179,28 @@ export function molecule(
         },
       };
     },
-    string(value: string, name?: IdentityItem) {
+    string(value: string, name?: NamespacedIdentityItem) {
       return create(name, atom.string, value, this);
     },
-    number(value: number, name?: IdentityItem) {
+    number(value: number, name?: NamespacedIdentityItem) {
       return create(name, atom.number, value, this);
     },
-    boolean(value: boolean, name?: IdentityItem) {
+    boolean(value: boolean, name?: NamespacedIdentityItem) {
       return create(name, atom.boolean, value, this);
     },
-    date(value: Date, name?: IdentityItem) {
+    date(value: Date, name?: NamespacedIdentityItem) {
       return create(name, atom.date, value, this);
     },
-    object(value: atom.PrimitiveObject, name?: IdentityItem) {
+    object(value: atom.PrimitiveObject, name?: NamespacedIdentityItem) {
       return create(name, atom.object, value, this);
     },
-    list(value: atom.PrimitiveList, name?: IdentityItem) {
+    list(value: atom.PrimitiveList, name?: NamespacedIdentityItem) {
       return create(name, atom.list, value, this);
     },
-    collection(value: atom.AtomCollection, name?: IdentityItem) {
+    collection(value: atom.AtomCollection, name?: NamespacedIdentityItem) {
       return create(name, atom.collection, value, this);
     },
-    map(value: atom.AtomMap, name?: IdentityItem) {
+    map(value: atom.AtomMap, name?: NamespacedIdentityItem) {
       return create(name, atom.map, value, this);
     },
     persist(): Promise<CommitResultMessage[]> {
@@ -156,8 +211,9 @@ export function molecule(
       assert(mol, "molecule not found");
       return mol as Molecule;
     },
-    use(...names: string[]) {
+    use<T extends Array<AnyAtom> = Array<AnyAtom>>(...names: string[]) {
       const items: AnyAtom[] = [];
+
       names.forEach((name) => {
         const atom = this.named.get(name);
         if (atom) {
@@ -166,7 +222,8 @@ export function molecule(
           throw new AssertionError(`No atom with name ${name}`);
         }
       });
-      return items;
+
+      return items as T;
     },
   };
 }

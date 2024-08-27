@@ -1,4 +1,4 @@
-import { identity, type IdentityInstance } from "./identity.ts";
+import { identity, type NamespacedIdentity } from "./identity.ts";
 import { ulid } from "./ulid.ts";
 
 // deno-lint-ignore no-explicit-any
@@ -7,7 +7,7 @@ export type AnyActivity = Activity<string, Record<string, any>>;
 export type AnyActivityData = ActivityData<string, Record<string, any>>;
 
 export type Activity<K, P> = {
-  identity: IdentityInstance;
+  identity: NamespacedIdentity;
   value: ActivityData<K, P>;
 };
 
@@ -24,7 +24,7 @@ export function activity<K = string, P = Record<string, unknown>>(
 ): Activity<K, P> {
   const uniqueUlid = ulid.new();
   return {
-    identity: identity("activity", uniqueUlid),
+    identity: identity("ns://activity", uniqueUlid),
     value: {
       k: type,
       v: payload,

@@ -22,13 +22,6 @@ Deno.test("cell", async () => {
   const results = await myCell({});
   const results2 = await myCell({}, results);
 
-  assertEquals(results.identity.key.length, 2);
-  assertEquals(
-    results.identity.key.slice(0, 1),
-    ["durable_counter"],
-    "adds organism identifier",
-  );
-
   const [kv] = results2.use("kv");
   assertEquals(kv.value.count, 1);
   assertEquals(kv.value.calls, 2);
