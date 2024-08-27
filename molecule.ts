@@ -15,7 +15,7 @@ import { denoRuntime, memoryRuntime } from "./runtime.ts";
 import { assert } from "./assert.ts";
 import type { Cell, CellCtx } from "./cell.ts";
 import { cell } from "./cell.ts";
-import { type Activity, type AnyActivityData, activity } from "./activity.ts";
+import { type AnyActivityData, activity } from "./activity.ts";
 
 export type Molecule = {
   kind: PrimitiveKind.Molecule;
