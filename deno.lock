@@ -2,14 +2,34 @@
   "version": "3",
   "packages": {
     "specifiers": {
+      "jsr:@cross/deepmerge@^1.0.0": "jsr:@cross/deepmerge@1.0.0",
+      "jsr:@cross/fs@^0.1.11": "jsr:@cross/fs@0.1.11",
+      "jsr:@cross/jwt": "jsr:@cross/jwt@0.5.0",
+      "jsr:@hono/hono": "jsr:@hono/hono@4.5.9",
       "jsr:@hono/hono@^4.5.9": "jsr:@hono/hono@4.5.9",
       "jsr:@std/assert@^1.0.2": "jsr:@std/assert@1.0.2",
-      "jsr:@std/fmt@^1.0.0": "jsr:@std/fmt@1.0.0",
+      "jsr:@std/encoding@^0.224.2": "jsr:@std/encoding@0.224.3",
+      "jsr:@std/fmt@^1.0.0": "jsr:@std/fmt@1.0.1",
       "jsr:@std/internal@^1.0.1": "jsr:@std/internal@1.0.1",
       "jsr:@std/ulid@^1.0.0": "jsr:@std/ulid@1.0.0",
+      "npm:@types/node": "npm:@types/node@18.16.19",
       "npm:create-hono@latest": "npm:create-hono@0.9.0"
     },
     "jsr": {
+      "@cross/deepmerge@1.0.0": {
+        "integrity": "1e1318a74e31ba1959b9aa0acae8bd417b806f74ffd25ac07c90e12f83ad6b1d"
+      },
+      "@cross/fs@0.1.11": {
+        "integrity": "88fdde19a5c0b5517ccd1bf087a2cdae8f4e9acbd54b9688f5332af574b49f7d"
+      },
+      "@cross/jwt@0.5.0": {
+        "integrity": "910791587e94599cea3476ddf9e232da5569cb388619f27dd864e154af31f2b0",
+        "dependencies": [
+          "jsr:@cross/deepmerge@^1.0.0",
+          "jsr:@cross/fs@^0.1.11",
+          "jsr:@std/encoding@^0.224.2"
+        ]
+      },
       "@hono/hono@4.5.9": {
         "integrity": "47f561e67aedbd6d1e21e3a1ae26c1b80ffdb62a51c161d502e75bee17ca40af"
       },
@@ -19,8 +39,14 @@
           "jsr:@std/internal@^1.0.1"
         ]
       },
+      "@std/encoding@0.224.3": {
+        "integrity": "5e861b6d81be5359fad4155e591acf17c0207b595112d1840998bb9f476dbdaf"
+      },
       "@std/fmt@1.0.0": {
         "integrity": "8a95c9fdbb61559418ccbc0f536080cf43341655e1444f9d375a66886ceaaa3d"
+      },
+      "@std/fmt@1.0.1": {
+        "integrity": "ef76c37faa7720faa8c20fd8cc74583f9b1e356dfd630c8714baa716a45856ab"
       },
       "@std/internal@1.0.1": {
         "integrity": "6f8c7544d06a11dd256c8d6ba54b11ed870aac6c5aeafff499892662c57673e6"
@@ -30,6 +56,10 @@
       }
     },
     "npm": {
+      "@types/node@18.16.19": {
+        "integrity": "sha512-IXl7o+R9iti9eBW4Wg2hx1xQDig183jj7YLn8F7udNceyfkbn1ZxmzZXuak20gR40D7pIkIY1kYGx5VIGbaHKA==",
+        "dependencies": {}
+      },
       "create-hono@0.9.0": {
         "integrity": "sha512-aRO+y+ltb9vwbLNfTMdTp3C0b8fWFfGKxWZeJZ/dGjwddMsUjwxBdhge8ckxpr0gBXszHy+hTSGcV0JT9pf7sg==",
         "dependencies": {}

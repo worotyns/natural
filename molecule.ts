@@ -53,6 +53,14 @@ export type Molecule = {
   defaults(defaultValues: Record<string, atom.Primitive>): Molecule;
 };
 
+export function env(nsid: NamespacedIdentity): Molecule {
+  if (Deno.env.get('DENO_DEPLOYMENT_ID') || (Deno.env.get("DENO_ENV") || "").startsWith('prod')) {
+    return persistent(nsid);
+  } else {
+    return temporary(nsid);
+  }
+}
+
 // for testing purposes or empheral use
 export function temporary(nsid: NamespacedIdentity): Molecule {
   return molecule(createRepository(memoryRuntime), nsid);
