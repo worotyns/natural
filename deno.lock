@@ -2,12 +2,17 @@
   "version": "3",
   "packages": {
     "specifiers": {
+      "jsr:@hono/hono@^4.5.9": "jsr:@hono/hono@4.5.9",
       "jsr:@std/assert@^1.0.2": "jsr:@std/assert@1.0.2",
       "jsr:@std/fmt@^1.0.0": "jsr:@std/fmt@1.0.0",
       "jsr:@std/internal@^1.0.1": "jsr:@std/internal@1.0.1",
-      "jsr:@std/ulid@^1.0.0": "jsr:@std/ulid@1.0.0"
+      "jsr:@std/ulid@^1.0.0": "jsr:@std/ulid@1.0.0",
+      "npm:create-hono@latest": "npm:create-hono@0.9.0"
     },
     "jsr": {
+      "@hono/hono@4.5.9": {
+        "integrity": "47f561e67aedbd6d1e21e3a1ae26c1b80ffdb62a51c161d502e75bee17ca40af"
+      },
       "@std/assert@1.0.2": {
         "integrity": "ccacec332958126deaceb5c63ff8b4eaf9f5ed0eac9feccf124110435e59e49c",
         "dependencies": [
@@ -22,6 +27,12 @@
       },
       "@std/ulid@1.0.0": {
         "integrity": "d41c3d27a907714413649fee864b7cde8d42ee68437d22b79d5de4f81d808780"
+      }
+    },
+    "npm": {
+      "create-hono@0.9.0": {
+        "integrity": "sha512-aRO+y+ltb9vwbLNfTMdTp3C0b8fWFfGKxWZeJZ/dGjwddMsUjwxBdhge8ckxpr0gBXszHy+hTSGcV0JT9pf7sg==",
+        "dependencies": {}
       }
     }
   },
