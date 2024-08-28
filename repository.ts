@@ -19,7 +19,7 @@ function deserialize(key: NamespacedIdentity) {
   };
 }
 
-const store = new Map();
+export const store = new Map();
 
 // deno-lint-ignore require-await
 export const memoryRuntime = async (): Promise<Repository> => {
@@ -51,8 +51,8 @@ export const memoryRuntime = async (): Promise<Repository> => {
         item.version = lastVer = ulid();
         await store.set(item.nsid, {
           key: item.nsid,
-          value: item.value,
-          versionstamp: lastVer,
+          val: item.value,
+          ver: lastVer,
         });
       }
 
@@ -63,18 +63,16 @@ export const memoryRuntime = async (): Promise<Repository> => {
       prefixNs: NamespacedIdentity,
       startNs: NamespacedIdentity,
     ) => {
-      const start = deserialize(startNs);
-
       const items = [];
       for (const [_, { key, val }] of store) {
         if (
           key.startsWith(prefixNs)
         ) {
-          if (start && start.key.length) {
+          if (startNs) {
             if (
               key.localeCompare(
-                start,
-              ) >= 0
+                startNs,
+              ) > 0
             ) {
               items.push(val);
             } else {

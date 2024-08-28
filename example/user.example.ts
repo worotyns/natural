@@ -2,6 +2,7 @@
 
 import { RuntimeError } from "../errors.ts";
 import { atom, scan } from "../mod.ts";
+import { store } from "../repository.ts";
 
 interface User {
   name: string;
@@ -37,5 +38,7 @@ await user.do(async (ctx) => {
 
 console.log(user);
 
-const items = await scan('ns://activity', 'ns://');
+const items = await scan('ns://activity', 'ns://activity/01J6DKQQVEF8BTDXWPVRY2XTTP');
 console.log({items});
+
+// console.log(store)
