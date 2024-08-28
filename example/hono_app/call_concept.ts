@@ -123,14 +123,8 @@ function atomContext<Schema extends BaseSchema>(
     get value(): Schema {
       return fromAtom.value;
     },
-    activity(type, payload): AtomActivity {
-      return atom(compileIdentity("ns://activity/:ulid"), {
-        nsid: fromAtom.nsid,
-        type: type,
-        data: payload,
-        logs: [],
-      });
-    },
+
+    activity: activityContext,
     mutate(mutator: (value: Schema) => Voidable<Schema>): Atom<Schema> {
       const temporary = structuredClone(fromAtom.value || defaults);
       const returned = mutator(temporary);
