@@ -1,5 +1,5 @@
 // base primitives
-export { persistent, temporary, env } from "./molecule.ts";
+export { env, persistent, temporary } from "./molecule.ts";
 
 // types
 export type { CellCtx, CellState } from "./cell.ts";

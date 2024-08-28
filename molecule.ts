@@ -15,7 +15,7 @@ import { denoRuntime, memoryRuntime } from "./runtime.ts";
 import { assert } from "./assert.ts";
 import type { Cell, CellCtx } from "./cell.ts";
 import { cell } from "./cell.ts";
-import { type AnyActivityData, activity } from "./activity.ts";
+import { activity, type AnyActivityData } from "./activity.ts";
 
 export type Molecule = {
   kind: PrimitiveKind.Molecule;
@@ -24,7 +24,9 @@ export type Molecule = {
   named: atom.MapAtom;
   loose: atom.CollectionAtom;
   version: atom.Versionstamp;
-  pick<T extends Array<AnyAtom> = Array<AnyAtom>>(predict: (atom: AnyAtom) => boolean): T;
+  pick<T extends Array<AnyAtom> = Array<AnyAtom>>(
+    predict: (atom: AnyAtom) => boolean,
+  ): T;
   durable(identity: string, runner: (ctx: CellCtx) => Promise<void>): Cell;
   serialize(): atom.SerializedAtomWithReferences;
   toJSON(opts?: { pretty: boolean }): object;
@@ -44,8 +46,13 @@ export type Molecule = {
   map(value: atom.AtomMap, name?: NamespacedIdentityItem): atom.MapAtom;
   persist: () => Promise<CommitResultMessage[]>;
   restore: () => Promise<Molecule>;
-  scanActivities: (lastUlid?: Ulid | NamespacedIdentity) => Promise<AnyActivityData[]>;
-  registerActivity: (type: string, payload: atom.PrimitiveObject) => Promise<NamespacedIdentity>;
+  scanActivities: (
+    lastUlid?: Ulid | NamespacedIdentity,
+  ) => Promise<AnyActivityData[]>;
+  registerActivity: (
+    type: string,
+    payload: atom.PrimitiveObject,
+  ) => Promise<NamespacedIdentity>;
   deserialize: (data: atom.MapAtom) => Molecule;
   setVersion: (version: string) => void;
   use<T extends Array<AnyAtom>>(...names: string[]): T;
@@ -54,7 +61,10 @@ export type Molecule = {
 };
 
 export function env(nsid: NamespacedIdentity): Molecule {
-  if (Deno.env.get('DENO_DEPLOYMENT_ID') || (Deno.env.get("DENO_ENV") || "").startsWith('prod')) {
+  if (
+    Deno.env.get("DENO_DEPLOYMENT_ID") ||
+    (Deno.env.get("DENO_ENV") || "").startsWith("prod")
+  ) {
     return persistent(nsid);
   } else {
     return temporary(nsid);
@@ -106,7 +116,7 @@ export function molecule(
         nsid: this.identity,
       });
       await runtime.log.add(newActivity);
-      return newActivity.identity
+      return newActivity.identity;
     },
     scanActivities(lastUlid?: Ulid | NamespacedIdentity) {
       lastUlid = lastUlid || ulid.unixEpochStart();
@@ -235,7 +245,9 @@ export function molecule(
       assert(mol, "molecule not found");
       return mol as Molecule;
     },
-    pick<T extends Array<AnyAtom> = Array<AnyAtom>>(predict: (atom: AnyAtom) => boolean) {
+    pick<T extends Array<AnyAtom> = Array<AnyAtom>>(
+      predict: (atom: AnyAtom) => boolean,
+    ) {
       return this.loose.valueOf().filter(predict) as T;
     },
     use<T extends Array<AnyAtom> = Array<AnyAtom>>(...names: string[]) {
