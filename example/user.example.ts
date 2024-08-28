@@ -21,10 +21,6 @@ const user = atom<User>("ns://users/john@edu.pl", {
 await user.do(async (ctx) => {
   ctx.activity.type("create-user");
 
-  if (ctx.value.activated) {
-    throw new RuntimeError("Cannot activate already activated user");
-  }
-
   ctx.activity.log("before action activated");
   await new Promise((resolve) => setTimeout(resolve, 10));
   ctx.activity.log("user activated");
@@ -39,6 +35,5 @@ await user.do(async (ctx) => {
 console.log(user);
 
 const items = await scan('ns://activity', 'ns://activity/01J6DKQQVEF8BTDXWPVRY2XTTP');
-console.log({items});
 
-// console.log(store)
+console.log({items});
