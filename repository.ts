@@ -1,236 +1,172 @@
-import {
-  combine,
-  identity,
-  type NamespacedIdentity,
-  type NamespacedIdentityItem,
-} from "./identity.ts";
-import { PrimitiveKind, PrimitiveValue } from "./primitive.ts";
-import * as atom from "./atom.ts";
-import type { AnyActivity, AnyActivityData } from "./activity.ts";
-import type { Ulid } from "./ulid.ts";
-import { type Molecule, molecule } from "./molecule.ts";
-import type { Runtime } from "./runtime.ts";
-import { assert } from "./assert.ts";
-import { RuntimeError } from "./errors.ts";
+import type {
+  Atom,
+  BaseSchema,
+  NamespacedIdentity,
+  Optional,
+  Repository,
+  StoredItem,
+  Versionstamp,
+} from "./atom.ts";
+import { VersionError } from "./errors.ts";
+import { sprintf, ulid } from "./utils.ts";
 
-export type IdentifiableAndValuedOfAndKindPrimitive = {
-  kind: PrimitiveKind;
-  identity: NamespacedIdentity;
-  serialize: () => atom.SerializedAtom;
-};
-
-export type NaturalRepo = {
-  persist: (
-    ...items: Array<atom.AnyAtom | Molecule>
-  ) => Promise<CommitResultMessage[]>;
-  restore: <T = unknown>(
-    identifier: NamespacedIdentity,
-    partialAtoms?: NamespacedIdentityItem[],
-  ) => Promise<T | null>;
-};
-
-export type ActivityRepo = {
-  add: (...items: Array<AnyActivity>) => Promise<void>;
-  scan: (lastUlid: Ulid | NamespacedIdentity) => Promise<AnyActivityData[]>;
-};
-
-export type Repository = {
-  atoms: NaturalRepo;
-  log: ActivityRepo;
-};
-
-export type CommitResultMessage = { status: boolean; versionstamp: string };
-
-export type PersistedAtom = atom.SerializedAtom["value"];
-
-export function createRepository(runtime: Runtime): Repository {
-  // append only version does not matter
-  const add = async (...items: Array<AnyActivity>) => {
-    for (const item of items) {
-      await runtime.set({
-        key: item.identity,
-        val: item.value,
-        ver: "",
-      });
-    }
+function deserialize(key: NamespacedIdentity) {
+  const [ns, path] = key.split("://");
+  return {
+    namespace: ns,
+    path,
+    key: path.split("/"),
   };
+}
 
-  const scan = async (rawUlid: Ulid | NamespacedIdentity) => {
-    const activity: AnyActivityData[] = [];
-    assert(rawUlid, "startFrom is not defined");
+const store = new Map();
 
-    const prefix = identity("activity");
-    const startFrom = rawUlid.startsWith("ns://")
-      ? rawUlid as NamespacedIdentity
-      : combine(prefix, rawUlid);
+// deno-lint-ignore require-await
+export const memoryRuntime = async (): Promise<Repository> => {
+  return {
+    restore: async (key: NamespacedIdentity) => {
+      const item = await store.get(key);
+      return item;
+    },
+    persist: async (...items: Atom<BaseSchema>[]): Promise<Versionstamp> => {
+      let lastVer: Versionstamp = "";
 
-    for (
-      const item of await runtime.scan<AnyActivityData>(
-        prefix,
-        startFrom,
-        100,
-      )
-    ) {
-      activity.push(item);
-    }
-
-    return activity;
-  };
-
-  const persist = async (...items: Array<atom.AnyAtom | Molecule>) => {
-    const commitMsgs: CommitResultMessage[] = [];
-
-    for (const item of items) {
-      switch (item.kind) {
-        case PrimitiveKind.Molecule:
-          for (const [key, value] of Object.entries(item.serialize())) {
-            await runtime.set({
-              key: key as NamespacedIdentity,
-              val: value.value,
-              ver: value.version,
-            });
-          }
-
-          break;
-        case PrimitiveKind.Atom:
-          for (const [key, value] of Object.entries(item.serialize())) {
-            const [result] = await runtime.set({
-              key: key as NamespacedIdentity,
-              val: value.value,
-              ver: value.version,
-            });
-            commitMsgs.push(result);
-          }
-
-          break;
+      for (const item of items) {
+        const currentItem = await store.get(item.nsid);
+        const isVersionError = item.version && currentItem &&
+          currentItem.ver !== item.version;
+        if (isVersionError) {
+          console.warn(
+            sprintf(
+              'problem with update key "%s", previous version "%s", new version "%s"',
+              item.nsid,
+              currentItem.ver,
+              item.version,
+            ),
+          );
+          throw new VersionError(
+            "Cannot commit transaction due to version errors",
+          );
+        }
+        item.version = lastVer = ulid();
+        await store.set(item.nsid, {
+          key: item.nsid,
+          value: item.value,
+          versionstamp: lastVer,
+        });
       }
-    }
 
-    return commitMsgs;
-  };
-
-  const restore = async <T = unknown>(
-    identityToRestore: NamespacedIdentity,
-  ) => {
-    const restoreSingleAtom = async (
-      item: PersistedAtom,
-      mol?: Molecule,
+      return lastVer;
+    },
+    // deno-lint-ignore require-await
+    scan: async (
+      prefixNs: NamespacedIdentity,
+      startNs: NamespacedIdentity,
     ) => {
-      switch (item.t) {
-        case PrimitiveValue.Boolean:
-          return atom.boolean(item.v as boolean, item.i, mol);
-        case PrimitiveValue.Number:
-          return atom.number(item.v as number, item.i, mol);
-        case PrimitiveValue.String:
-          return atom.string(item.v as string, item.i, mol);
-        case PrimitiveValue.List:
-          return atom.list(
-            item.v as atom.PrimitiveList,
-            item.i,
-            mol,
-          );
-        case PrimitiveValue.Date:
-          return atom.date(
-            new Date(item.v as number),
-            item.i,
-            mol,
-          );
-        case PrimitiveValue.Object:
-          return atom.object(
-            item.v as atom.PrimitiveObject,
-            item.i,
-            mol,
-          );
-        case PrimitiveValue.Map: {
-          const temporaryMap = atom.map({}, item.i, mol);
+      const start = deserialize(startNs);
 
-          for (const [key, ident] of Object.entries(item.v)) {
-            const mapItem = await runtime.get<PersistedAtom>(
-              ident,
-            );
-
-            if (!mapItem) {
-              console.warn("item not found: ", ident);
+      const items = [];
+      for (const [_, { key, val }] of store) {
+        if (
+          key.startsWith(prefixNs)
+        ) {
+          if (start && start.key.length) {
+            if (
+              key.localeCompare(
+                start,
+              ) >= 0
+            ) {
+              items.push(val);
+            } else {
               continue;
             }
-
-            temporaryMap.set(
-              key,
-              await restoreSingleAtom(mapItem.val, mol) as atom.AnyAtom,
-            );
+          } else {
+            items.push(val);
           }
-          return temporaryMap;
         }
-        case PrimitiveValue.Collection: {
-          const temporaryCollection = atom.collection(
-            [],
-            item.i,
-            mol,
-          );
 
-          for (const ident of item.v as NamespacedIdentity[]) {
-            const collItem = await runtime.get<PersistedAtom>(
-              ident,
-            );
-
-            if (!collItem) {
-              console.warn("item not found: ", ident);
-              continue;
-            }
-
-            temporaryCollection.add(
-              await restoreSingleAtom(collItem.val, mol) as atom.AnyAtom,
-            );
-          }
-
-          return temporaryCollection;
+        if (items.length >= 100) {
+          break;
         }
-        default:
-          throw new Error("not supported kind of primitive");
       }
+
+      return items;
+    },
+  };
+};
+
+export const denoRuntime = async (): Promise<Repository> => {
+  const db = await Deno.openKv();
+
+  const toAtomicCheck = (item: Atom<BaseSchema>): Deno.AtomicCheck => {
+    return {
+      key: deserialize(item.nsid).key,
+      versionstamp: item.version,
     };
-
-    const restoreUnknown = async (item: PersistedAtom) => {
-      if (!item) {
-        return null;
-      }
-      switch (item.k) {
-        case PrimitiveKind.Identity:
-          throw new RuntimeError("identity not supported in serialization");
-        case PrimitiveKind.Atom:
-          return await restoreSingleAtom(item) as T;
-        case PrimitiveKind.Molecule: {
-          const mol = molecule(
-            createRepository(runtime),
-            item.i,
-          );
-          const molMap = await restoreSingleAtom(item, mol);
-          return mol.deserialize(molMap as atom.MapAtom) as T;
-        }
-        case PrimitiveKind.Cell:
-          throw new RuntimeError("not implemented");
-        default:
-          return null;
-      }
-    };
-
-    const item = await runtime.get<PersistedAtom>(identityToRestore);
-
-    if (!item) {
-      return null;
-    }
-
-    return restoreUnknown(item.val);
   };
 
   return {
-    atoms: {
-      persist,
-      restore,
+    restore: async <Schema extends BaseSchema>(
+      key: NamespacedIdentity,
+    ): Promise<Optional<StoredItem<Schema>>> => {
+      const denoKey = deserialize(key);
+      const item = await db.get(denoKey.key);
+
+      if (!item || (!item.versionstamp && !item.value)) {
+        return null;
+      }
+
+      return {
+        key: key,
+        val: item.value as Schema,
+        ver: item.versionstamp || "",
+      };
     },
-    log: {
-      add,
-      scan,
+    persist: async (...items: Atom<BaseSchema>[]): Promise<Versionstamp> => {
+      const transaction = db.atomic();
+
+      for (const item of items) {
+        if (item.version) {
+          const check = toAtomicCheck(item);
+          transaction.check(check);
+        }
+        transaction.set(deserialize(item.nsid).key, item.value);
+      }
+
+      const result = await transaction.commit();
+
+      if (!result.ok) {
+        console.warn(items);
+        throw new VersionError(
+          "Cannot commit transaction due to version errors",
+        );
+      }
+
+      return result.versionstamp;
+    },
+    scan: async <T = unknown>(
+      prefixNs: NamespacedIdentity,
+      startNs: NamespacedIdentity,
+    ) => {
+      const prefix = deserialize(prefixNs);
+      const start = deserialize(startNs);
+
+      console.log({prefix, start})
+
+      const activity: T[] = [];
+
+      for await (
+        const item of db.list<T>({
+          prefix: prefix.key,
+          start: start.key,
+        }, {
+          limit: 100,
+        })
+      ) {
+        activity.push(item.value);
+      }
+
+      return activity;
     },
   };
-}
+};

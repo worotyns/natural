@@ -1,4 +1,4 @@
-import { assert } from "./assert.ts";
+import { assert } from "./utils.ts";
 
 // Function to check if a specific role has permission
 export function has(permissions: number, role: number) {

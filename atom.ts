@@ -1,636 +1,208 @@
-import { RuntimeError } from "./errors.ts";
-import type { NamespacedIdentity } from "./identity.ts";
-import type { Molecule } from "./molecule.ts";
-import { PrimitiveKind, PrimitiveValue } from "./primitive.ts";
+import { createLog, measure, ulid } from "./utils.ts";
 
-// sortable and equalable string
+type NamespacedIdentityItem = string;
+export type NamespacedIdentity = `ns://${NamespacedIdentityItem}`;
+
+function compileIdentity(nsid: NamespacedIdentity): NamespacedIdentity {
+  return nsid.replace(":ulid", ulid()) as NamespacedIdentity;
+}
+
 export type Versionstamp = string;
 
-// special atom collection type
-export type AtomCollection = (AnyAtom & BaseAtomHelpers<unknown>)[];
-// special atom record type
-export type AtomMap = {
-  [key: string]: AnyAtom & BaseAtomHelpers<unknown>;
-};
-
-// primitive types
-export type PrimitiveObject = {
-  [key: string]: Primitive | PrimitiveList;
-};
-export type PrimitiveList = Primitive[];
-export type Primitive =
-  | string
-  | boolean
-  | number
-  | Date
-  | PrimitiveObject
-  | PrimitiveList;
-
-// atom must have identity
-// atom must have value
-// atom must have a version stamp
-export type Atom<
-  ValueType,
-  ValueTypeKind extends PrimitiveValue = PrimitiveValue,
-> = {
-  kind: PrimitiveKind.Atom;
-  identity: NamespacedIdentity;
-  value: ValueType;
-  valueKind: ValueTypeKind;
-  version: Versionstamp;
-};
-
-// deno-lint-ignore no-explicit-any
-export type AnyAtom = Atom<any> & BaseAtomHelpers<any> & BaseOrganismHelpers;
-
-export type SerializedAtomWithReferences = {
-  [i: NamespacedIdentity]: SerializedAtom;
-};
-
-export type SerializedAtom = {
-  value: {
-    i: NamespacedIdentity;
-    k: PrimitiveKind;
-    v: Primitive;
-    t: PrimitiveValue;
+type AcitvityType = string;
+type Activity = {
+  nsid: NamespacedIdentity;
+  type: AcitvityType;
+  data: object;
+  logs: string[];
+  results: {
+    [k: string]: {
+      success: boolean;
+      value: unknown;
+    };
   };
+};
+
+export type AtomActivity = Atom<Activity>;
+
+export type BaseSchema = object;
+
+export interface Atom<Schema extends BaseSchema> {
+  nsid: NamespacedIdentity;
+  value: Schema;
   version: Versionstamp;
-};
+  do(ctx: (ctx: AtomContext<Schema>) => Promise<void>): Promise<void>;
+}
 
-// base atom interface that allows mutation and persistence
-type BaseAtomHelpers<V> = {
-  toJSON(opts?: { pretty: boolean }): object;
-  // drop references by structured clone
-  valueOf(): V;
-  // ready to store in database
-  serialize(
-    references?: SerializedAtomWithReferences,
-  ): SerializedAtomWithReferences;
-  // basic primitive for updates
-  mutate(value: V): void;
-  setVersion: (version: string) => void;
-};
+interface AtomContext<Schema extends BaseSchema> {
+  value: Schema;
+  activity: ActivityContext;
+  mutate(ctx: (value: Schema) => Voidable<Schema>): Atom<Schema>;
+  atom<Schema extends BaseSchema>(
+    nsid: NamespacedIdentityItem | NamespacedIdentity,
+    defaults: Schema,
+  ): Atom<Schema>;
+}
 
-// base logic for persistence and archiving
-type BaseOrganismHelpers = {
-  // should be used only when persisting single instance of atom
-  // in case of a molecule, should be used persist on molecule due to different transaction level
-  persist(): Promise<void>;
-  // archive(): Promise<void>;
-};
+export interface StoredItem<Schema extends BaseSchema> {
+  key: NamespacedIdentity;
+  val: Schema;
+  ver: Versionstamp;
+}
 
-// raw atom implementation
-export function atom<V, K extends PrimitiveValue, H extends BaseAtomHelpers<V>>(
-  value: V,
-  valueKind: K,
-  identity: NamespacedIdentity,
-  version: Versionstamp,
-  helpers: H,
-  molecule?: Molecule,
-): Atom<V, K> & H & BaseOrganismHelpers {
+export interface Repository {
+  persist(...atoms: Array<Atom<BaseSchema>>): Promise<Versionstamp>;
+  restore<Schema extends BaseSchema>(
+    nsid: NamespacedIdentity,
+  ): Promise<Optional<StoredItem<Schema>>>;
+  scan(
+    prefix: NamespacedIdentity,
+    start: NamespacedIdentity,
+  ): Promise<Array<AtomActivity>>;
+}
+
+export type Optional<T> = T | null;
+export type Voidable<T> = void | T;
+
+interface ActivityContext {
+  activity: AtomActivity;
+  log(...msg: string[]): void;
+  type(type: AcitvityType): void;
+  success(type: AcitvityType, payload: object): void;
+  failure(type: AcitvityType, payload: object): void;
+}
+
+function atomContext<Schema extends BaseSchema>(
+  fromAtom: Atom<Schema>,
+  defaults: Schema,
+  activityContext: ActivityContext,
+  repository: Repository,
+): AtomContext<Schema> {
   return {
-    ...helpers,
-    identity,
-    kind: PrimitiveKind.Atom,
-    valueKind: valueKind,
-    value: value,
-    version: version,
-    async persist() {
-      if (!molecule) {
-        throw new RuntimeError(
-          "Cannot persist without an molecule, create atom from molecule first. Then you will able to use .persist() on atom.",
-        );
-      }
-      const [response] = await molecule.runtime.atoms.persist(this);
-      this.version = response.versionstamp;
+    get value(): Schema {
+      return fromAtom.value;
+    },
+
+    activity: activityContext,
+    mutate(mutator: (value: Schema) => Voidable<Schema>): Atom<Schema> {
+      const temporary = structuredClone(fromAtom.value || defaults);
+      const returned = mutator(temporary);
+      fromAtom.value = returned ? returned : temporary;
+      return fromAtom;
+    },
+    atom<Schema extends BaseSchema>(
+      nsid: NamespacedIdentityItem | NamespacedIdentity,
+      defaults: Schema,
+    ): Atom<Schema> {
+      return atomFactory(
+        compileIdentity(
+          nsid.startsWith("ns://")
+            ? nsid as NamespacedIdentity
+            : [fromAtom.nsid, nsid].join("/") as NamespacedIdentity,
+        ),
+        defaults,
+        repository,
+      );
     },
   };
 }
 
-// string atom helpers
-interface StringAtomHelpers extends BaseAtomHelpers<string> {}
+function activityContext(
+  nsid: NamespacedIdentity,
+  repository: Repository,
+): ActivityContext {
+  const getCurrentRunTime = measure();
 
-// interface of string atom with all helpers
-export type StringAtom =
-  & Atom<string, PrimitiveValue.String>
-  & StringAtomHelpers
-  & BaseOrganismHelpers;
-
-// string atom with validation, guards and other helpers
-export function string(
-  value: string,
-  identity: NamespacedIdentity,
-  molecule?: Molecule,
-): StringAtom {
-  return atom<string, PrimitiveValue.String, StringAtomHelpers>(
-    value,
-    PrimitiveValue.String,
-    identity,
-    "",
+  const activity = atomFactory<Activity>(
+    compileIdentity("ns://activity/:ulid"),
     {
-      setVersion(this: StringAtom, version: string) {
-        this.version = version;
-      },
-      mutate(this: StringAtom, newValue: string) {
-        this.value = newValue;
-      },
-      toJSON(this: StringAtom, opts: { pretty: boolean }) {
-        return {
-          [serializeIdentity(this.identity, opts)]: this.valueOf(),
-        };
-      },
-      serialize(this: StringAtom) {
-        return {
-          [this.identity]: {
-            version: this.version,
-            value: {
-              i: this.identity,
-              t: this.valueKind,
-              v: this.valueOf(),
-              k: this.kind,
-            },
-          },
-        };
-      },
-      valueOf(this: StringAtom) {
-        return this.value.valueOf();
-      },
+      nsid,
+      type: "",
+      data: {},
+      logs: [],
+      results: {},
     },
-    molecule,
+    repository,
   );
-}
 
-// number atom helpers
-export type NumberAtom =
-  & Atom<number, PrimitiveValue.Number>
-  & NumberAtomHelpers
-  & BaseAtomHelpers<number>
-  & BaseOrganismHelpers;
+  const log = (...msg: string[]): void => {
+    activity.value.logs.push(
+      createLog(`[${getCurrentRunTime().toFixed(2)}ms]`, ...msg),
+    );
+  };
 
-// interface of number atom with all helpers
-interface NumberAtomHelpers extends BaseAtomHelpers<number> {}
+  const result = (
+    type: AcitvityType,
+    success: boolean,
+    value: unknown,
+  ): void => {
+    log(`[${type}]`, success ? "success" : "failure");
+    activity.value.results[type] = {
+      success,
+      value: value,
+    };
+  };
 
-// number atom with validation, guards and other helpers
-export function number(
-  value: number,
-  identity: NamespacedIdentity,
-  molecule?: Molecule,
-): NumberAtom {
-  return atom<number, PrimitiveValue.Number, NumberAtomHelpers>(
-    value,
-    PrimitiveValue.Number,
-    identity,
-    "",
-    {
-      setVersion(this: NumberAtom, version: string) {
-        this.version = version;
-      },
-      mutate(this: NumberAtom, newValue: number) {
-        this.value = newValue;
-      },
-      toJSON(this: NumberAtom, opts: { pretty: boolean }) {
-        return {
-          [serializeIdentity(this.identity, opts)]: this.valueOf(),
-        };
-      },
-      serialize(this: NumberAtom) {
-        return {
-          [this.identity]: {
-            version: this.version,
-            value: {
-              i: this.identity,
-              t: this.valueKind,
-              v: this.valueOf(),
-              k: this.kind,
-            },
-          },
-        };
-      },
-      valueOf(this: NumberAtom) {
-        return this.value.valueOf();
-      },
+  return {
+    activity: activity,
+    type(type: AcitvityType): void {
+      activity.value.type = type;
     },
-    molecule,
-  );
-}
-
-// boolean atom helpers
-export type BooleanAtom =
-  & Atom<boolean, PrimitiveValue.Boolean>
-  & BooleanAtomHelpers
-  & BaseAtomHelpers<boolean>
-  & BaseOrganismHelpers;
-
-// interface of boolean atom with all helpers
-interface BooleanAtomHelpers extends BaseAtomHelpers<boolean> {
-  toggle(): void;
-  positive(): void;
-  negative(): void;
-}
-
-// boolean atom with validation, guards and other helpers
-export function boolean(
-  value: boolean,
-  identity: NamespacedIdentity,
-  molecule?: Molecule,
-): BooleanAtom {
-  return atom<boolean, PrimitiveValue.Boolean, BooleanAtomHelpers>(
-    value,
-    PrimitiveValue.Boolean,
-    identity,
-    "",
-    {
-      setVersion(this: BooleanAtom, version: string) {
-        this.version = version;
-      },
-      mutate(this: BooleanAtom, newValue: boolean) {
-        this.value = newValue;
-      },
-      toJSON(this: BooleanAtom, opts: { pretty: boolean }) {
-        return {
-          [serializeIdentity(this.identity, opts)]: this.valueOf(),
-        };
-      },
-      serialize(this: BooleanAtom) {
-        return {
-          [this.identity]: {
-            version: this.version,
-            value: {
-              i: this.identity,
-              t: this.valueKind,
-              v: this.valueOf(),
-              k: this.kind,
-            },
-          },
-        };
-      },
-      valueOf(this: BooleanAtom) {
-        return this.value.valueOf();
-      },
-      toggle(this: BooleanAtom) {
-        this.value = !this.value;
-      },
-      positive(this: BooleanAtom) {
-        this.value = true;
-      },
-      negative(this: BooleanAtom) {
-        this.value = false;
-      },
+    failure(type: AcitvityType, payload: object): void {
+      result(type, false, payload);
     },
-    molecule,
-  );
-}
-
-// date atom helpers
-interface DateAtomHelpers extends BaseAtomHelpers<Date> {}
-
-// interface of date atom with all helpers
-export type DateAtom =
-  & Atom<Date, PrimitiveValue.Date>
-  & DateAtomHelpers
-  & BaseOrganismHelpers;
-
-// date atom with validation, guards and other helpers
-export function date(
-  value: Date,
-  identity: NamespacedIdentity,
-  molecule?: Molecule,
-): DateAtom {
-  return atom<Date, PrimitiveValue.Date, DateAtomHelpers>(
-    value,
-    PrimitiveValue.Date,
-    identity,
-    "",
-    {
-      setVersion(this: DateAtom, version: string) {
-        this.version = version;
-      },
-      mutate(this: DateAtom, newValue: Date) {
-        this.value = newValue;
-      },
-      toJSON(this: DateAtom, opts: { pretty: boolean }) {
-        return {
-          [serializeIdentity(this.identity, opts)]: this.valueOf(),
-        };
-      },
-      serialize(this: DateAtom) {
-        return {
-          [this.identity]: {
-            version: this.version,
-            value: {
-              i: this.identity,
-              t: this.valueKind,
-              v: this.valueOf().toISOString(),
-              k: this.kind,
-            },
-          },
-        };
-      },
-      valueOf(this: DateAtom) {
-        return new Date(this.value.getTime());
-      },
+    success(type: AcitvityType, payload: object): void {
+      result(type, true, payload);
     },
-    molecule,
-  );
+    log,
+  };
 }
 
-// object atom helpers
-interface ObjectAtomHelpers extends BaseAtomHelpers<PrimitiveObject> {}
+export function atomFactory<Schema extends BaseSchema>(
+  nsid: NamespacedIdentity,
+  defaults: Schema,
+  repository: Repository,
+): Atom<Schema> {
+  return {
+    nsid,
+    value: structuredClone(defaults),
+    version: "",
+    async do(
+      callback: (ctx: AtomContext<Schema>) => Promise<void>,
+    ): Promise<void> {
+      const activityCtx = activityContext(nsid, repository);
+      activityCtx.log("restoring...");
 
-// interface of object atom with all helpers
-export type ObjectAtom =
-  & Atom<PrimitiveObject, PrimitiveValue.Object>
-  & ObjectAtomHelpers
-  & BaseOrganismHelpers;
+      const restoredValue = await repository.restore<Schema>(nsid);
 
-// object atom with validation, guards and other helpers
-export function object(
-  value: PrimitiveObject,
-  identity: NamespacedIdentity,
-  molecule?: Molecule,
-): ObjectAtom {
-  return atom<PrimitiveObject, PrimitiveValue.Object, ObjectAtomHelpers>(
-    value,
-    PrimitiveValue.Object,
-    identity,
-    "",
-    {
-      setVersion(this: ObjectAtom, version: string) {
-        this.version = version;
-      },
-      mutate(this: ObjectAtom, newValue: PrimitiveObject) {
-        this.value = newValue;
-      },
-      toJSON(this: ObjectAtom, opts: { pretty: boolean }) {
-        return {
-          [serializeIdentity(this.identity, opts)]: this.valueOf(),
-        };
-      },
-      serialize(this: ObjectAtom) {
-        return {
-          [this.identity]: {
-            version: this.version,
-            value: {
-              i: this.identity,
-              t: this.valueKind,
-              v: this.valueOf(),
-              k: this.kind,
-            },
-          },
-        };
-      },
-      valueOf(this: ObjectAtom) {
-        return structuredClone(this.value);
-      },
+      if (restoredValue) {
+        activityCtx.success("restore", restoredValue);
+        this.version = restoredValue.ver;
+        this.value = structuredClone(restoredValue.val);
+      } else {
+        activityCtx.failure("restore", {
+          reason: "not found",
+        });
+      }
+
+      const atomCtx = atomContext(this, defaults, activityCtx, repository);
+
+      await callback(atomCtx)
+        .then(async () => {
+          activityCtx.log("persisting...");
+          const newVersion = await repository.persist(
+            this,
+            activityCtx.activity,
+          );
+          this.version = newVersion;
+          activityCtx.log("persisted version: " + newVersion);
+        })
+        .catch(async (error) => {
+          // TODO: handle custom errors and map to activity?
+          activityCtx.failure("error", error.message);
+          await repository.persist(activityCtx.activity);
+          console.error(error);
+        });
     },
-    molecule,
-  );
-}
-
-// boolean atom helpers
-export type ListAtom =
-  & Atom<PrimitiveList, PrimitiveValue.List>
-  & ListAtomHelpers
-  & BaseAtomHelpers<PrimitiveList>
-  & BaseOrganismHelpers;
-
-// interface of boolean atom with all helpers
-interface ListAtomHelpers extends BaseAtomHelpers<PrimitiveList> {
-  add(value: Primitive): void;
-}
-
-// atom list, guards and other helpers
-export function list(
-  value: PrimitiveList,
-  identity: NamespacedIdentity,
-  molecule?: Molecule,
-): ListAtom {
-  return atom<PrimitiveList, PrimitiveValue.List, ListAtomHelpers>(
-    value,
-    PrimitiveValue.List,
-    identity,
-    "",
-    {
-      add(this: ListAtom, value: Primitive) {
-        this.value.push(value);
-      },
-      setVersion(this: ListAtom, version: string) {
-        this.version = version;
-      },
-      mutate(this: ListAtom, newValue: PrimitiveList) {
-        this.value = newValue;
-      },
-      toJSON(this: ListAtom, opts: { pretty: boolean }) {
-        return {
-          [serializeIdentity(this.identity, opts)]: this.valueOf(),
-        };
-      },
-      serialize(this: ListAtom) {
-        return {
-          [this.identity]: {
-            version: this.version,
-            value: {
-              i: this.identity,
-              t: this.valueKind,
-              v: this.valueOf(),
-              k: this.kind,
-            },
-          },
-        };
-      },
-      valueOf(this: ListAtom) {
-        return structuredClone(this.value.valueOf()) as PrimitiveList;
-      },
-    },
-    molecule,
-  );
-}
-
-// collection atom helpers
-export type CollectionAtom =
-  & Atom<AtomCollection, PrimitiveValue.Collection>
-  & CollectionAtomHelpers
-  & BaseAtomHelpers<AtomCollection>
-  & BaseOrganismHelpers;
-
-// interface of collection atom with all helpers
-interface CollectionAtomHelpers extends BaseAtomHelpers<AtomCollection> {
-  add(atom: AnyAtom): void; // should create new atom as "builder" or sth?
-  // push should just add new atom
-}
-
-// atom collection, guards and other helpers
-export function collection(
-  value: AtomCollection,
-  identity: NamespacedIdentity,
-  molecule?: Molecule,
-): CollectionAtom {
-  return atom<AtomCollection, PrimitiveValue.Collection, CollectionAtomHelpers>(
-    value,
-    PrimitiveValue.Collection,
-    identity,
-    "",
-    {
-      setVersion(this: CollectionAtom, version: string) {
-        this.version = version;
-      },
-      mutate(this: CollectionAtom, newValue: AtomCollection) {
-        this.value = newValue;
-      },
-      add(this: CollectionAtom, atom: AnyAtom) {
-        this.value.push(atom);
-      },
-      toJSON(this: CollectionAtom, opts: { pretty: boolean }) {
-        return {
-          [serializeIdentity(this.identity, opts)]: this.valueOf()
-            .map((item) => item.toJSON(opts)),
-        };
-      },
-      serialize(
-        this: CollectionAtom,
-        references: SerializedAtomWithReferences = {},
-      ) {
-        for (const atom of this.value) {
-          const reference = atom.identity;
-          if (reference in references) {
-            throw new RuntimeError(
-              "Cannot serialize atoms, with same identity: " + reference,
-            );
-          }
-
-          references[reference] = atom.serialize(references)[reference];
-        }
-
-        return {
-          ...references,
-          [this.identity]: {
-            version: this.version,
-            value: {
-              i: this.identity,
-              t: this.valueKind,
-              v: Object.keys(references),
-              k: this.kind,
-            },
-          },
-        };
-      },
-      valueOf(this: CollectionAtom) {
-        return this.value.valueOf() as AtomCollection;
-      },
-    },
-    molecule,
-  );
-}
-
-// map atom helpers
-export type MapAtom =
-  & Atom<AtomMap, PrimitiveValue.Map>
-  & MapAtomHelpers
-  & BaseAtomHelpers<AtomMap>
-  & BaseOrganismHelpers;
-
-// interface of map atom with all helpers
-interface MapAtomHelpers extends BaseAtomHelpers<AtomMap> {
-  has(key: string): boolean;
-  set(key: string, val: AnyAtom): void;
-  del(key: string): void;
-  get(key: string): null | AnyAtom;
-}
-
-// atom collection, guards and other helpers
-export function map(
-  value: AtomMap,
-  identity: NamespacedIdentity,
-  molecule?: Molecule,
-): MapAtom {
-  return atom<AtomMap, PrimitiveValue.Map, MapAtomHelpers>(
-    value,
-    PrimitiveValue.Map,
-    identity,
-    "",
-    {
-      del(this: MapAtom, key: string) {
-        delete this.value[key];
-      },
-      get(this: MapAtom, key: string) {
-        return this.value[key] || null;
-      },
-      has(this: MapAtom, key: string) {
-        return key in this.value;
-      },
-      set(this: MapAtom, key: string, val: AnyAtom & BaseAtomHelpers<unknown>) {
-        this.value[key] = val;
-      },
-      setVersion(this: MapAtom, version: string) {
-        this.version = version;
-      },
-      mutate(this: MapAtom, newValue: AtomMap) {
-        this.value = newValue;
-      },
-      toJSON(this: MapAtom, opts: { pretty: boolean }) {
-        return {
-          [serializeIdentity(this.identity, opts)]: Object.keys(this.value)
-            .reduce(
-              (res, key) => {
-                const atom = this.value[key];
-                return {
-                  ...res,
-                  ...atom.toJSON(opts),
-                };
-              },
-              {},
-            ),
-        };
-      },
-      serialize(this: MapAtom, references: SerializedAtomWithReferences = {}) {
-        for (const key in this.value) {
-          const atom = this.value[key];
-          if (!atom.identity) {
-            throw new RuntimeError(
-              "Cannot serialize - MapAtom property value must be AnyAtom",
-            );
-          }
-          const reference = atom.identity;
-          if (reference in references) {
-            throw new RuntimeError(
-              "Cannot serialize atoms, with same identity: " + reference,
-            );
-          }
-          references[key as keyof typeof references] =
-            atom.serialize(references)[reference];
-        }
-
-        return {
-          ...Object.keys(references).reduce((res, val) => {
-            res[references[val as keyof typeof references].value.i] =
-              references[val as keyof typeof references];
-            return res;
-          }, {} as Record<string, SerializedAtom>),
-          [this.identity]: {
-            version: this.version,
-            value: {
-              i: this.identity,
-              t: this.valueKind,
-              k: this.kind,
-              v: Object.keys(this.value).reduce((res, val) => {
-                res[val] = references[val as keyof typeof references].value.i;
-                return res;
-              }, {} as Record<string, string>),
-            },
-          },
-        };
-      },
-      valueOf(this: MapAtom) {
-        return this.value.valueOf() as AtomMap;
-      },
-    },
-    molecule,
-  );
-}
-
-function serializeIdentity(
-  ident: NamespacedIdentity,
-  opts?: { pretty: boolean },
-) {
-  return opts?.pretty ? ident.split("/").pop()! : ident;
+  };
 }
