@@ -25,9 +25,3 @@ export function identity(
 function compileIdentity(nsid: NamespacedIdentityItem): NamespacedIdentity {
   return nsid.replace(":ulid", ulid()) as NamespacedIdentity;
 }
-
-function sanitize(value: string) {
-  return value
-    .replace(/\//g, "")
-    .trim();
-}

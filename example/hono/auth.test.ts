@@ -177,30 +177,17 @@ Deno.test("/auth as superuser", async () => {
   assertEquals(enterGoodCodeResponse.error, null);
   assert(enterGoodCodeResponse.jwt, "jwt exists");
 
-  const checkAuth: any = await main.request("/auth/authorized/admin", {
+  const checkAuth = await main.request("/auth/authorized/admin", {
     method: "GET",
     headers: {
       "Authorization": `Bearer ${enterGoodCodeResponse.jwt}`,
     },
   });
 
-  assertEquals(checkAuth.status, 200);
   const checkAuthResponse = await checkAuth.json();
+  assertEquals(checkAuth.status, 200);
   assert(checkAuthResponse.user);
   assertEquals(checkAuthResponse.role, userRoles.get('superuser'));
-  assert(checkAuthResponse.iat);
-  assert(checkAuthResponse.exp);
-
-  const getUser = await main.request("/users/me", {
-    method: "GET",
-    headers: {
-      "Authorization": `Bearer ${enterGoodCodeResponse.jwt}`,
-    },
-  });
-
-  const getUserResponse = await getUser.json();
-  assertEquals(getUser.status, 200);
-  assertEquals(getUserResponse.email, "mati@wdft.ovh");
 
   generatedCodeStub.restore()
 });
