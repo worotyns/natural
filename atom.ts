@@ -13,7 +13,6 @@ type AcitvityType = string;
 type Activity = {
   nsid: NamespacedIdentity;
   type: AcitvityType;
-  data: object;
   logs: string[];
   results: {
     [k: string]: {
@@ -31,13 +30,14 @@ export interface Atom<Schema extends BaseSchema> {
   nsid: NamespacedIdentity;
   value: Schema;
   version: Versionstamp;
-  do(ctx: (ctx: AtomContext<Schema>) => Promise<void>): Promise<void>;
+  do<Params extends BaseSchema = Record<string, never>>(activityType: AcitvityType, ctx: (ctx: AtomContext<Schema, Params>) => Promise<void>, params: Params): Promise<AtomActivity>;
 }
 
-interface AtomContext<Schema extends BaseSchema> {
+export interface AtomContext<Schema extends BaseSchema, Params extends BaseSchema> {
   value: Schema;
+  params: Params;
   activity: ActivityContext;
-  mutate(ctx: (value: Schema) => Voidable<Schema>): Atom<Schema>;
+  step(name: string, ctx: (value: Schema) => Voidable<Schema> | Promise<Voidable<Schema>>): Promise<Atom<Schema>>;
   atom<Schema extends BaseSchema>(
     nsid: NamespacedIdentityItem | NamespacedIdentity,
     defaults: Schema,
@@ -68,26 +68,44 @@ interface ActivityContext {
   activity: AtomActivity;
   log(...msg: string[]): void;
   type(type: AcitvityType): void;
-  success(type: AcitvityType, payload: object): void;
-  failure(type: AcitvityType, payload: object): void;
+  success(type: AcitvityType, payload: Optional<object>): void;
+  failure(type: AcitvityType, payload: Optional<object>): void;
 }
 
-function atomContext<Schema extends BaseSchema>(
+function atomContext<Schema extends BaseSchema, Params extends BaseSchema = Record<string, never>>(
   fromAtom: Atom<Schema>,
   defaults: Schema,
   activityContext: ActivityContext,
   repository: Repository,
-): AtomContext<Schema> {
+  params: Params,
+): AtomContext<Schema, Params> {
   return {
     get value(): Schema {
       return fromAtom.value;
     },
-
+    params: structuredClone(params),
     activity: activityContext,
-    mutate(mutator: (value: Schema) => Voidable<Schema>): Atom<Schema> {
+    async step(name: string, mutator: (value: Schema) => Voidable<Schema> | Promise<Voidable<Schema>>): Promise<Atom<Schema>> {
+      activityContext.log(`[step: ${name}]`, 'processing');
+
       const temporary = structuredClone(fromAtom.value || defaults);
-      const returned = mutator(temporary);
+      const call = mutator(temporary);
+      const promisedCall: Promise<Voidable<Schema>> = ('then' in (call || {})) ? call as Promise<Voidable<Schema>> : Promise.resolve(call);
+      
+      const returned = await promisedCall
+        .then(value => {
+            activityContext.success(name, value || temporary);
+            return value || temporary;
+          })
+        .catch(error => {
+          activityContext.failure(name, {
+            name: error.name,
+            message: error.message,
+          });
+      });
+
       fromAtom.value = returned ? returned : temporary;
+      activityContext.log(`[step: ${name}]`, 'finished');
       return fromAtom;
     },
     atom<Schema extends BaseSchema>(
@@ -118,17 +136,20 @@ function activityContext(
     {
       nsid,
       type: "",
-      data: {},
       logs: [],
       results: {},
     },
     repository,
   );
 
+  let lastLogTime = 0;
+
   const log = (...msg: string[]): void => {
+    const current = getCurrentRunTime();
     activity.value.logs.push(
-      createLog(`[${getCurrentRunTime().toFixed(2)}ms]`, ...msg),
+      createLog(`[${current.toFixed(2)}ms|${(current - lastLogTime).toFixed(2)}ms]`, ...msg),
     );
+    lastLogTime = current;
   };
 
   const result = (
@@ -136,7 +157,7 @@ function activityContext(
     success: boolean,
     value: unknown,
   ): void => {
-    log(`[${type}]`, success ? "success" : "failure");
+    log(`[step: ${type}]`, success ? "success" : "failure");
     activity.value.results[type] = {
       success,
       value: value,
@@ -149,10 +170,10 @@ function activityContext(
       activity.value.type = type;
     },
     failure(type: AcitvityType, payload: object): void {
-      result(type, false, payload);
+      result(type, false, structuredClone(payload));
     },
     success(type: AcitvityType, payload: object): void {
-      result(type, true, payload);
+      result(type, true, structuredClone(payload));
     },
     log,
   };
@@ -164,38 +185,40 @@ export function atomFactory<Schema extends BaseSchema>(
   repository: Repository,
 ): Atom<Schema> {
   return {
-    nsid,
+    nsid: compileIdentity(nsid),
     value: structuredClone(defaults),
     version: "",
-    async do(
-      callback: (ctx: AtomContext<Schema>) => Promise<void>,
-    ): Promise<void> {
+    async do<Params extends BaseSchema = Record<string, never>>(
+      activityType: AcitvityType,
+      callback: (ctx: AtomContext<Schema, Params>) => Promise<void>,
+      params: Params,
+    ): Promise<AtomActivity> {
       const activityCtx = activityContext(nsid, repository);
-      activityCtx.log("restoring...");
+      activityCtx.type(activityType);
+
+      activityCtx.log("[atom]", "restoring...");
 
       const restoredValue = await repository.restore<Schema>(nsid);
 
       if (restoredValue) {
-        activityCtx.success("restore", restoredValue);
+        activityCtx.log("[atom]", "restored success");
         this.version = restoredValue.ver;
         this.value = structuredClone(restoredValue.val);
       } else {
-        activityCtx.failure("restore", {
-          reason: "not found",
-        });
+        activityCtx.log("[atom]", "restored failed, not found");
       }
 
-      const atomCtx = atomContext(this, defaults, activityCtx, repository);
+      const atomCtx = atomContext(this, defaults, activityCtx, repository, params);
 
       await callback(atomCtx)
         .then(async () => {
-          activityCtx.log("persisting...");
+          activityCtx.log("[atom]", "persisting...");
           const newVersion = await repository.persist(
             this,
             activityCtx.activity,
           );
           this.version = newVersion;
-          activityCtx.log("persisted version: " + newVersion);
+          activityCtx.log("[atom]", "persisted version: " + newVersion);
         })
         .catch(async (error) => {
           // TODO: handle custom errors and map to activity?
@@ -203,6 +226,8 @@ export function atomFactory<Schema extends BaseSchema>(
           await repository.persist(activityCtx.activity);
           console.error(error);
         });
+
+      return activityCtx.activity;
     },
   };
 }

@@ -1,117 +1,153 @@
-// import { type Context, Hono } from "jsr:@hono/hono@^4.5.9";
-// import { jwt, type JwtVariables, sign } from "jsr:@hono/hono/jwt";
+import { type Context, Hono } from "jsr:@hono/hono@^4.5.9";
+import { jwt, type JwtVariables, sign } from "jsr:@hono/hono/jwt";
 
-// // local import normaly from jsr:@worotyns/normal;
-// import {
-//   env,
-//   type NamespacedIdentity,
-//   type ObjectAtom,
-//   type StringAtom,
-// } from "../mod.ts";
-// import { assert } from "../assert.ts";
+// local import normaly from jsr:@worotyns/normal;
+import { atom, type NamespacedIdentity } from "../../mod.ts";
+import { assert } from "../../utils.ts";
 
-// const authorization = env("ns://auth");
+interface AuthorizationViaEmailWithCode {
+  user: string;
+  code: number;
+  emailSent: boolean;
+  expireHours: number;
+  jwt: string;
+}
 
-// const authorizationFlow = authorization.durable(
-//   "auth-via-email-with-code",
-//   async (ctx) => {
-//     await ctx.run("send-code-step", async () => {
-//       // todo: check that user exists fake
-//       const ctxUser = ctx.get<NamespacedIdentity>("user");
-//       assert(ctxUser, "user parameter is required");
+const AUTH_DEFAULT_VALUES: AuthorizationViaEmailWithCode = {
+  user: "",
+  code: 0,
+  emailSent: false,
+  expireHours: 6,
+  jwt: "",
+};
 
-//       const data = await ctx.restore(ctxUser);
+interface StartSignProcess {
+  email: string;
+  expireHours: number;
+}
 
-//       if (!data) {
-//         // create new user
-//       }
+interface CheckCodeProcess {
+  nsid: NamespacedIdentity;
+  code: number;
+}
 
-//       const code = Math.floor(100000 + Math.random() * 900000);
-//       ctx.set("generatedCode", code);
-//       console.log(
-//         "dummy sending code via sms or email: ",
-//         code,
-//         " for user ",
-//         ctxUser,
-//       );
-//     });
+const services = {
+  generateCode(): Promise<number> {
+    return Promise.resolve(Math.floor(100000 + Math.random() * 900000));
+  },
+  async sendEmail(email: string, code: number): Promise<boolean> {
+    console.log("sending email...", email, code);
+    await new Promise((resolve) => setTimeout(resolve, 120));
+    return true;
+  },
+};
 
-//     await ctx.waitFor("givenCode");
+const generateCodeAndSend = async (params: StartSignProcess) => {
+  const authorization = atom<AuthorizationViaEmailWithCode>(
+    "ns://authorization/:ulid",
+    AUTH_DEFAULT_VALUES,
+  );
 
-//     await ctx.run("generate-jwt-step", async () => {
-//       const givenCode = ctx.get<number>("givenCode");
-//       assert(givenCode, "givenCode must be number");
+  const activity = await authorization.do('auth-code-gen-and-send', async (ctx) => {
+    await ctx.step("user", async (value) => {
+      // todo create identity helpers
+      value.user = `ns://users/${params.email}`;
+      // fetch user, and check bla bla bla
+      ctx.activity.log("set user: " + value.user);
+    });
 
-//       const generatedCode = ctx.get<number>("generatedCode");
-//       assert(generatedCode, "generatedCode must be number");
+    await ctx.step("code", async (value) => {
+      value.code = await services.generateCode();
+      value.expireHours = ctx.params.expireHours || 6;
+    });
 
-//       const expHours = ~~(ctx.get<number>("expireHours") || 10);
-//       assert(expHours, "expireHours must be number");
+    await ctx.step("email", async (value) => {
+      ctx.activity.log("sending email with code" + ctx.value.code);
+      await services.sendEmail(ctx.params.email, ctx.value.code);
+      value.emailSent = true;
+      ctx.activity.log("email sent!");
+      ctx.activity.success("email", { status: "sent" });
+    });
+  }, params);
 
-//       assert(
-//         givenCode === generatedCode,
-//         "givenCode and generateCode must be equal",
-//       );
+  return {
+    nsid: authorization.nsid,
+    success: activity.value.results.code.success,
+  };
+};
 
-//       const ctxUser = ctx.get<string>("user");
-//       // check is not blocked or sth
-//       assert(ctxUser, "user must exsits");
+const checkCodeAndGenerateJWT = async (params: CheckCodeProcess) => {
+  const authorization = atom<AuthorizationViaEmailWithCode>(
+    params.nsid,
+    AUTH_DEFAULT_VALUES,
+  );
+  const activity = await authorization.do('auth-check-code-and-gen-jwt', async (ctx) => {
+    ctx.activity.log("try to generate jwt");
 
-//       const generatedToken = await sign({
-//         user: ctxUser,
-//         iat: Math.floor(Date.now() / 1000),
-//         exp: Math.floor(Date.now() / 1000) + (3600 * expHours),
-//       }, JWT_SECRET);
+    assert(
+      ctx.params.code === ctx.value.code,
+      "givenCode and code must be equal",
+    );
 
-//       ctx.set("generatedToken", generatedToken);
-//     });
+    const ctxUser = ctx.value.user;
+    // check is not blocked or sth
+    // assert(ctxUser, "user must exsits");
 
-//     await ctx.waitFor("generatedToken");
-//   },
-// );
+    const jwt = await sign({
+      user: ctxUser,
+      iat: Math.floor(Date.now() / 1000),
+      exp: Math.floor(Date.now() / 1000) + (3600 * ctx.value.expireHours),
+    }, JWT_SECRET);
 
-// export const app = new Hono<{ Variables: JwtVariables }>();
-// const JWT_SECRET = Deno.env.get("JWT_SECRET") || "my-very-very-secret-variable";
+    ctx.activity.log("jwt generated");
 
-// export const assertIsAuthorized = jwt({
-//   secret: JWT_SECRET,
-// });
+    await ctx.step("jwt", (value) => {
+      value.jwt = jwt;
+    });
 
-// app.post("/auth/sign", async (c) => {
-//   const data = await c.req.json();
+    ctx.activity.success("jwt", { jwt });
+  }, params);
 
-//   // start flow return ns://
-//   const expireHours = ~~(c.req.query("expire_hours") || 10);
-//   const response = await authorizationFlow({
-//     user: `ns://users/${data.email}`,
-//     expireHours: expireHours,
-//   });
+  return {
+    nsid: authorization.nsid,
+    success: activity.value.results.jwt.success,
+    jwt: authorization.value.jwt,
+  };
+};
 
-//   const [status] = response.use("status");
+export const app = new Hono<{ Variables: JwtVariables }>();
 
-//   return c.json({
-//     nsid: response.identity,
-//     status: status.valueOf(),
-//   });
-// });
+const JWT_SECRET = Deno.env.get("JWT_SECRET") ||
+  "my-very-very-secret-variable-used-as-jwt-secret";
 
-// app.post("/auth/confirm", async (c) => {
-//   const data = await c.req.json();
+export const assertIsAuthorized = jwt({
+  secret: JWT_SECRET,
+});
 
-//   const response = await authorizationFlow({
-//     givenCode: data.code,
-//   }, await env(data.nsid).restore());
+app.post("/auth/sign", async (c) => {
+  const data = await c.req.json();
 
-//   const [status, kv] = response.use<[StringAtom, ObjectAtom]>("status", "kv");
+  const expireHours = ~~(c.req.query("expire_hours") || 10);
 
-//   await authorization.registerActivity("user-login", { user_nsid: data.nsid });
+  const response = await generateCodeAndSend({
+    email: data.email,
+    expireHours: expireHours,
+  });
 
-//   return c.json({
-//     response: status,
-//     jwt: kv.valueOf()["generatedToken"],
-//   });
-// });
+  return c.json(response);
+});
 
-// app.get("/auth/authorized", assertIsAuthorized, (c: Context) => {
-//   return c.json(c.get("jwtPayload"));
-// });
+app.post("/auth/confirm", async (c) => {
+  const data = await c.req.json();
+
+  const response = await checkCodeAndGenerateJWT({
+    nsid: data.nsid,
+    code: data.code,
+  });
+
+  return c.json(response);
+});
+
+app.get("/auth/authorized", assertIsAuthorized, (c: Context) => {
+  return c.json(c.get("jwtPayload"));
+});

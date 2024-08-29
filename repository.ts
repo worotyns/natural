@@ -149,7 +149,7 @@ export const denoRuntime = async (): Promise<Repository> => {
       const prefix = deserialize(prefixNs);
       const start = deserialize(startNs);
 
-      console.log({prefix, start})
+      console.log({ prefix, start });
 
       const activity: T[] = [];
 
