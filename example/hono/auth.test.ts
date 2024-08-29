@@ -15,6 +15,7 @@ Deno.test("/auth", async () => {
   });
 
   const sendCodeResponse = await sendCode.json();
+
   assertEquals(sendCode.status, 200);
   assertEquals(sendCodeResponse.success, true);
 
@@ -30,7 +31,10 @@ Deno.test("/auth", async () => {
 
   assertEquals(tryToResendBefore60Sec.status, 200);
   assertEquals(tryToResendBefore60SecResponse.success, false);
-  assertEquals(tryToResendBefore60SecResponse.error, 'Cannot send code too often, wait 60 seconds');
+  assertEquals(
+    tryToResendBefore60SecResponse.error,
+    "Cannot send code too often, wait 60 seconds",
+  );
 
   const enterBadCode = await app.request("/auth/confirm", {
     method: "POST",
@@ -45,7 +49,7 @@ Deno.test("/auth", async () => {
   assertEquals(enterBadCode.status, 200);
   assertEquals(enterBadCodeResponse.jwt, "");
   assertEquals(enterBadCodeResponse.success, false);
-  assertEquals(enterBadCodeResponse.error, 'given code not match');
+  assertEquals(enterBadCodeResponse.error, "given code not match");
 
   const enterGoodCode = await app.request("/auth/confirm", {
     method: "POST",
@@ -60,7 +64,7 @@ Deno.test("/auth", async () => {
   assertEquals(enterGoodCode.status, 200);
   assertEquals(enterGoodCodeResponse.success, true);
   assertEquals(enterGoodCodeResponse.error, null);
-  assert(enterGoodCodeResponse.jwt, 'jwt exists');
+  assert(enterGoodCodeResponse.jwt, "jwt exists");
 
   const enterGoodCodeAgain = await app.request("/auth/confirm", {
     method: "POST",
@@ -73,7 +77,10 @@ Deno.test("/auth", async () => {
 
   assertEquals(enterGoodCode.status, 200);
   assertEquals(enterGoodCodeAgainResponse.success, false);
-  assertEquals(enterGoodCodeAgainResponse.error, "jwt already generated, can't generate again");
+  assertEquals(
+    enterGoodCodeAgainResponse.error,
+    "jwt already generated, can't generate again",
+  );
 
   const checkAuth = await app.request("/auth/authorized", {
     method: "GET",
@@ -88,6 +95,4 @@ Deno.test("/auth", async () => {
   assert(checkAuthResponse.user);
   assert(checkAuthResponse.iat);
   assert(checkAuthResponse.exp);
-
-  console.log(store);
 });

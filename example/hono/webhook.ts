@@ -10,5 +10,5 @@ interface Webhook {
   url: string;
   headers: Record<string, string>;
   body: string;
-  meta: Meta
+  meta: Meta;
 }

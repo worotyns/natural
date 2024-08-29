@@ -1,8 +1,9 @@
 import type { NamespacedIdentity, NamespacedIdentityItem } from "./atom.ts";
 import { ulid } from "./utils.ts";
 
-export function identity(...args: Array<NamespacedIdentity | NamespacedIdentityItem>): NamespacedIdentity {
-
+export function identity(
+  ...args: Array<NamespacedIdentity | NamespacedIdentityItem>
+): NamespacedIdentity {
   const items: NamespacedIdentityItem[] = [];
 
   for (const item of args) {
@@ -27,6 +28,6 @@ function compileIdentity(nsid: NamespacedIdentityItem): NamespacedIdentity {
 
 function sanitize(value: string) {
   return value
-    .replace(/\//g, '')
+    .replace(/\//g, "")
     .trim();
 }

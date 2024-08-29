@@ -72,7 +72,7 @@ const generateCodeAndSend = async (params: StartSignProcess) => {
   return {
     nsid: authorization.nsid,
     success: activity.value.results?.code?.success || false,
-    error: activity.value.results.error?.value || null
+    error: activity.value.results.error?.value || null,
   };
 };
 
@@ -106,7 +106,7 @@ const resendCodeForUser = async (params: ResendCodeForUser) => {
   return {
     nsid: authorization.nsid,
     success: activity.value.results?.code?.success || false,
-    error: activity.value.results.error?.value || null
+    error: activity.value.results.error?.value || null,
   };
 };
 
@@ -119,12 +119,13 @@ const checkCodeAndGenerateJWT = async (params: CheckCodeProcess) => {
   const activity = await authorization.do(
     "auth-check-code-and-gen-jwt",
     async (ctx) => {
-
-      await ctx.step('check-jwt-is-not-generated', () => {
+      await ctx.step("check-jwt-is-not-generated", () => {
         if (ctx.value.jwt) {
-          throw new InvalidStateError("jwt already generated, can't generate again");
+          throw new InvalidStateError(
+            "jwt already generated, can't generate again",
+          );
         }
-      })
+      });
 
       await ctx.step("fetch-user-and-check-code", async () => {
         const user = await createOrRestoreUser({ email: ctx.value.email });
@@ -132,25 +133,25 @@ const checkCodeAndGenerateJWT = async (params: CheckCodeProcess) => {
 
         await ctx.step("check-code", async (value) => {
           if (ctx.params.code === value.code) {
-            await user.do('good-code-given', async (userCtx) => {
-              await userCtx.step('update-last-failed-login', (value) => {
+            await user.do("good-code-given", async (userCtx) => {
+              await userCtx.step("update-last-failed-login", (value) => {
                 value.meta.lastSuccessLoginAt = Date.now();
                 if (!value.meta.activatedAt) {
                   value.meta.activatedAt = Date.now();
                 }
-              })
+              });
             }, {});
           } else {
-            await user.do('wrong-code-given', async (userCtx) => {
-              await userCtx.step('update-last-failed-login', (value) => {
+            await user.do("wrong-code-given", async (userCtx) => {
+              await userCtx.step("update-last-failed-login", (value) => {
                 value.meta.lastFailLoginAt = Date.now();
-              })
+              });
             }, {});
             throw new InvalidStateError("given code not match");
           }
         });
       });
-      
+
       await ctx.step("jwt", async (value) => {
         const jwt = await sign({
           user: ctx.value.user,
@@ -160,7 +161,6 @@ const checkCodeAndGenerateJWT = async (params: CheckCodeProcess) => {
 
         value.jwt = jwt;
       });
-
     },
     params,
   );
@@ -169,7 +169,7 @@ const checkCodeAndGenerateJWT = async (params: CheckCodeProcess) => {
     nsid: authorization.nsid,
     success: activity.value.results.jwt?.success || false,
     jwt: authorization.value.jwt,
-    error: activity.value.results.error?.value || null
+    error: activity.value.results.error?.value || null,
   };
 };
 

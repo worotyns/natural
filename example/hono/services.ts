@@ -1,4 +1,3 @@
-
 export const services = {
   generateCode(): Promise<number> {
     return Promise.resolve(Math.floor(100000 + Math.random() * 900000));

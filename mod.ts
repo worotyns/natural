@@ -4,6 +4,7 @@ import {
   type BaseSchema,
   type NamespacedIdentity,
 } from "./atom.ts";
+import { identity } from "./identity.ts";
 import { denoRuntime, memoryRuntime } from "./repository.ts";
 export type { Atom, AtomContext, NamespacedIdentity } from "./atom.ts";
 export { identity } from "./identity.ts";
@@ -16,7 +17,7 @@ export function atom<Schema extends BaseSchema>(
   nsid: NamespacedIdentity,
   defaults: Schema,
 ): Atom<Schema> {
-  return atomFactory<Schema>(nsid, defaults, repository);
+  return atomFactory<Schema>(identity(nsid), defaults, repository);
 }
 
 export function scan(prefix: NamespacedIdentity, start: NamespacedIdentity) {

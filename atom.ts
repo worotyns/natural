@@ -27,6 +27,7 @@ export interface Atom<Schema extends BaseSchema> {
   nsid: NamespacedIdentity;
   value: Schema;
   version: Versionstamp;
+  fetch(): Promise<Atom<Schema>>;
   do<Params extends BaseSchema = Record<string, never>>(
     activityType: AcitvityType,
     ctx: (ctx: AtomContext<Schema, Params>) => Promise<void>,
@@ -207,6 +208,16 @@ export function atomFactory<Schema extends BaseSchema>(
     nsid: identity(nsid),
     value: structuredClone(defaults),
     version: "",
+    async fetch(): Promise<Atom<Schema>> {
+      const restoredValue = await repository.restore<Schema>(nsid);
+
+      if (restoredValue) {
+        this.version = restoredValue.ver;
+        this.value = structuredClone(restoredValue.val) as Schema;
+      }
+
+      return this;
+    },
     async do<Params extends BaseSchema = Record<string, never>>(
       activityType: AcitvityType,
       callback: (ctx: AtomContext<Schema, Params>) => Promise<void>,

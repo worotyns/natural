@@ -42,12 +42,12 @@ function defaults(email: string): User {
     },
     teams: [],
     activities: [],
-  }
+  };
 }
 
 export const createOrRestoreUser = async (params: CreateUser) => {
   const user = atom<User>(
-    identity('users', params.email),
+    identity("users", params.email),
     defaults(params.email),
   );
 
@@ -55,16 +55,16 @@ export const createOrRestoreUser = async (params: CreateUser) => {
     "user-created",
     async (ctx) => {
       if (!ctx.value.meta.createdAt) {
-        await ctx.step('set-defaults', (value) => {
+        await ctx.step("set-defaults", (value) => {
           value.meta.createdAt = Date.now();
           value.activities.push(ctx.activity.activity.nsid);
-        })
+        });
       }
-      
+
       if (ctx.value.activities.length > 50) {
-        await ctx.step('cut-activities', (value) => {
+        await ctx.step("cut-activities", (value) => {
           value.activities = value.activities.slice(-50);
-        })
+        });
       }
     },
     params,
@@ -72,28 +72,3 @@ export const createOrRestoreUser = async (params: CreateUser) => {
 
   return user;
 };
-
-// export const activateUser = async (nsid: NamespacedIdentity) => {
-//   const user = atom<User>(
-//     nsid,
-//     defaults('NA'),
-//   );
-
-//   const activity = await user.do(
-//     "user-activated",
-//     async (ctx) => {
-//       await ctx.step('first-login-activation', (value) => {
-//         value.activities.push(ctx.activity.activity.nsid);
-//         const now = Date.now();
-//         assert(!ctx.value.meta.activatedAt, 'user activated before')
-//         value.meta.activatedAt = now;
-//         value.meta.lastSuccessLoginAt = now;
-//       })
-//     },
-//     {},
-//   );
-
-//   console.log(activity)
-
-//   return user;
-// }
