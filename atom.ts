@@ -106,9 +106,10 @@ function atomContext<
       const temporary = structuredClone(fromAtom.value || defaults);
       
       const diff: Record<string, unknown> = {};
-      
-      const call = mutator(createMonitoredObject(temporary, (_op: string, prop: string, val: unknown) => {
+
+      const call = mutator(createMonitoredObject(temporary, (op: string, prop: string, val: unknown, old: unknown) => {
         diff[prop] = val;
+        activityContext.log(`[step: ${name}]`, `${op} on ${prop}: old = ${old}, new = ${val}`);
       }));
       
       const promisedCall: Promise<Voidable<Schema>> = ("then" in (call || {}))
