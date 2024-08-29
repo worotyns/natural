@@ -1,9 +1,9 @@
 import { Hono } from "jsr:@hono/hono@^4.5.9";
 import { app as authApp } from "./auth.ts";
 import { app as userApp } from "./user.ts";
+import { app as adminApp } from "./admin.ts";
 
 // TODO:
-// Add role to user and JWT
 // Prepare admin "scan" activites endpoint
 // Create a team
 // Invite people to a team
@@ -15,6 +15,7 @@ import { app as userApp } from "./user.ts";
 export const main = new Hono();
 
 main.route("/", authApp);
-main.route('/', userApp);
+main.route("/", userApp);
+main.route("/", adminApp);
 
 Deno.serve(main.fetch);

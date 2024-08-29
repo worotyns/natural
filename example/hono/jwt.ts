@@ -11,8 +11,11 @@ export const assertIsAuthorized = jwt({
   secret: JWT_SECRET,
 });
 
-export const assertHasRole = function(role?: number) {
-  assert(typeof role === 'number', "role is not defined - check role in assertHasRole");
+export const assertHasRole = function (role?: number) {
+  assert(
+    typeof role === "number",
+    "role is not defined - check role in assertHasRole",
+  );
   return async (context: Context, next: Next) => {
     const data = context.get("jwtPayload");
 
@@ -24,5 +27,5 @@ export const assertHasRole = function(role?: number) {
     }
 
     await next();
-  }  
-}
+  };
+};

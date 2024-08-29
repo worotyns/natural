@@ -87,15 +87,15 @@ app.put("/users/me", assertIsAuthorized, async (c: Context) => {
   const data = c.get("jwtPayload");
   const user = await createOrRestoreUser(data);
   const payload = await c.req.json();
-  
-  await user.do('user-change-data', async (ctx) => {
+
+  await user.do("user-change-data", async (ctx) => {
     if (ctx.params.name) {
-      await ctx.step('change-name', (value) => {
+      await ctx.step("change-name", (value) => {
         value.name = ctx.params.name;
-      })
+      });
     }
   }, {
     name: payload.name,
-  })
+  });
   return c.json(user.value);
 });

@@ -139,7 +139,7 @@ const checkCodeAndGenerateJWT = async (params: CheckCodeProcess) => {
 
       await ctx.step("fetch-user-and-check-code", async () => {
         const user = await createOrRestoreUser({ email: ctx.value.email });
-        
+
         await ctx.step("check-code", async (value) => {
           if (ctx.params.code === value.code) {
             await user.do("auth-good-code-given", async (userCtx) => {
@@ -165,7 +165,9 @@ const checkCodeAndGenerateJWT = async (params: CheckCodeProcess) => {
         const jwt = await sign({
           user: value.user,
           email: value.email,
-          role: value.email.endsWith('@wdft.ovh') ? userRoles.get('superuser') : userRoles.get('user'),
+          role: value.email.endsWith("@wdft.ovh")
+            ? userRoles.get("superuser")
+            : userRoles.get("user"),
           iat: Math.floor(Date.now() / 1000),
           exp: Math.floor(Date.now() / 1000) + (3600 * ctx.value.expireHours),
         }, JWT_SECRET);
@@ -224,6 +226,11 @@ app.get("/auth/authorized", assertIsAuthorized, (c: Context) => {
   return c.json(c.get("jwtPayload"));
 });
 
-app.get("/auth/authorized/admin", assertIsAuthorized, assertHasRole(userRoles.get('superuser')), (c: Context) => {
-  return c.json(c.get("jwtPayload"));
-});
+app.get(
+  "/auth/authorized/admin",
+  assertIsAuthorized,
+  assertHasRole(userRoles.get("superuser")),
+  (c: Context) => {
+    return c.json(c.get("jwtPayload"));
+  },
+);

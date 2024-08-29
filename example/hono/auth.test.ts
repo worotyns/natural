@@ -4,7 +4,11 @@ import { services } from "./services.ts";
 import { userRoles } from "./user.ts";
 
 Deno.test("/auth", async () => {
-  const generatedCodeStub = stub(services, "generateCode", () => Promise.resolve(123456));
+  const generatedCodeStub = stub(
+    services,
+    "generateCode",
+    () => Promise.resolve(123456),
+  );
 
   const sendCode = await main.request("/auth/sign", {
     method: "POST",
@@ -92,7 +96,7 @@ Deno.test("/auth", async () => {
   const checkAuthResponse = await checkAuth.json();
   assertEquals(checkAuth.status, 200);
   assert(checkAuthResponse.user);
-  assertEquals(checkAuthResponse.role, userRoles.get('user'));
+  assertEquals(checkAuthResponse.role, userRoles.get("user"));
   assert(checkAuthResponse.iat);
   assert(checkAuthResponse.exp);
 
@@ -108,7 +112,6 @@ Deno.test("/auth", async () => {
   assertEquals(getUserResponse.email, "a@a.com");
   assertEquals(getUserResponse.name, "");
 
-
   const editUserName = await main.request("/users/me", {
     method: "PUT",
     headers: {
@@ -116,7 +119,7 @@ Deno.test("/auth", async () => {
     },
     body: JSON.stringify({
       name: "my-name",
-    })
+    }),
   });
 
   const editUserNameResponse = await editUserName.json();
@@ -128,9 +131,12 @@ Deno.test("/auth", async () => {
   generatedCodeStub.restore();
 });
 
-
 Deno.test("/auth as superuser", async () => {
-  const generatedCodeStub = stub(services, "generateCode", () => Promise.resolve(123456));
+  const generatedCodeStub = stub(
+    services,
+    "generateCode",
+    () => Promise.resolve(123456),
+  );
 
   const sendCode = await main.request("/auth/sign", {
     method: "POST",
@@ -187,7 +193,17 @@ Deno.test("/auth as superuser", async () => {
   const checkAuthResponse = await checkAuth.json();
   assertEquals(checkAuth.status, 200);
   assert(checkAuthResponse.user);
-  assertEquals(checkAuthResponse.role, userRoles.get('superuser'));
+  assertEquals(checkAuthResponse.role, userRoles.get("superuser"));
 
-  generatedCodeStub.restore()
+  const activities = await main.request("/admin/activity", {
+    method: "GET",
+    headers: {
+      "Authorization": `Bearer ${enterGoodCodeResponse.jwt}`,
+    },
+  });
+
+  const activitiesResponse = await activities.json();
+  console.log(activitiesResponse);
+
+  generatedCodeStub.restore();
 });
