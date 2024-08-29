@@ -2,6 +2,10 @@ import { sprintf } from "@std/fmt/printf";
 import { monotonicUlid } from "@std/ulid";
 import { AssertionError, type CoreError } from "./errors.ts";
 
+export function slug(value: string): string {
+  return value.trim().replace(/[^a-z0-9]+/gi, "-").toLowerCase();
+}
+
 export function assert(
   expr: unknown,
   coreErrorOrMsg: string | CoreError,

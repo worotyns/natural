@@ -175,7 +175,7 @@ Deno.test("/auth as superuser", async () => {
   });
 
   const activitiesResponse = await activities.json();
-  assertEquals(activitiesResponse.length, 14);
+  assertEquals(activitiesResponse.length, 13);
 
   generatedCodeStub.restore();
 });
