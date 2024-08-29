@@ -30,8 +30,8 @@ export interface Atom<Schema extends BaseSchema> {
   fetch(): Promise<Atom<Schema>>;
   do<Params extends BaseSchema = Record<string, never>>(
     activityType: AcitvityType,
-    ctx: (ctx: AtomContext<Schema, Params>) => Promise<void>,
-    params: Params,
+    ctx: (ctx: AtomContext<Schema, Params>) => void | Promise<void>,
+    params?: Params,
   ): Promise<AtomActivity>;
 }
 
@@ -42,6 +42,7 @@ export interface AtomContext<
   value: Schema;
   params: Params;
   activity: ActivityContext;
+  referenceAtoms: Array<Atom<BaseSchema>>;
   atom<Schema extends BaseSchema>(
     nsid: NamespacedIdentityItem | NamespacedIdentity,
     defaults: Schema,
@@ -70,7 +71,6 @@ export type Voidable<T> = void | T;
 
 interface ActivityContext {
   activity: AtomActivity;
-  contextAtoms: Array<Atom<BaseSchema>>;
   log(...msg: string[]): void;
   type(type: AcitvityType): void;
   success(type: AcitvityType, payload: Optional<object>): void;
@@ -86,6 +86,7 @@ function atomContext<
   activityContext: ActivityContext,
   repository: Repository,
   params: Params,
+  referenceAtoms: Array<Atom<BaseSchema>> = [],
 ): AtomContext<Schema, Params> {
   return {
     get value(): Schema {
@@ -93,6 +94,7 @@ function atomContext<
     },
     params: structuredClone(params),
     activity: activityContext,
+    referenceAtoms: referenceAtoms,
     atom<Schema extends BaseSchema>(
       nsid: NamespacedIdentityItem | NamespacedIdentity,
       defaults: Schema,
@@ -105,9 +107,10 @@ function atomContext<
         ),
         defaults,
         repository,
+        { isInTransactionScope: true }
       );
 
-      this.activity.contextAtoms.push(freshAtomReference);
+      this.referenceAtoms.push(freshAtomReference);
 
       return freshAtomReference;
     },
@@ -133,6 +136,7 @@ function activityContext(
       },
     },
     repository,
+    { isInTransactionScope: true },
   );
 
   let lastLogTime = 0;
@@ -162,7 +166,6 @@ function activityContext(
 
   return {
     activity: activity,
-    contextAtoms: [],
     type(type: AcitvityType): void {
       activity.value.type = type;
     },
@@ -176,10 +179,15 @@ function activityContext(
   };
 }
 
+interface AtomOpts {
+  isInTransactionScope: boolean
+}
+
 export function atomFactory<Schema extends BaseSchema>(
   nsid: NamespacedIdentity,
   defaults: Schema,
   repository: Repository,
+  opts: AtomOpts,
 ): Atom<Schema> {
   return {
     nsid: identity(nsid),
@@ -197,8 +205,8 @@ export function atomFactory<Schema extends BaseSchema>(
     },
     async do<Params extends BaseSchema = Record<string, never>>(
       activityType: AcitvityType,
-      callback: (ctx: AtomContext<Schema, Params>) => Promise<void>,
-      params: Params,
+      callback: (ctx: AtomContext<Schema, Params>) => void | Promise<void>,
+      params: Params = {} as Params,
     ): Promise<AtomActivity> {
       const activityCtx = activityContext(nsid, repository);
       activityCtx.type(activityType);
@@ -229,20 +237,34 @@ export function atomFactory<Schema extends BaseSchema>(
         activityCtx,
         repository,
         params,
+        
       );
 
-      await callback(atomCtx)
+      const call = callback(atomCtx);
+      const promisiedCall = (call && 'then' in call) ? call : Promise.resolve(call);
+
+      await promisiedCall
         .then(async () => {
           this.value = temporary;
-          activityCtx.log("[atom]", "persisting...");
-          const newVersion = await repository.persist(
-            this,
-            activityCtx.activity,
-            ...activityCtx.contextAtoms,
-          );
-          this.version = newVersion;
-          activityCtx.log("[atom]", "persisted version: " + newVersion);
-          activityCtx.success(activityType, diff);
+          if (!opts.isInTransactionScope) {
+            activityCtx.log("[atom]", "persisting...");
+
+            const toPersist = [
+              this,
+              activityCtx.activity,
+              ...atomCtx.referenceAtoms,
+            ]
+        
+            toPersist.forEach(item => activityCtx.log(`[ref:${item.nsid}] persisting...`))
+        
+            const newVersion = await repository.persist(...toPersist);
+            toPersist.forEach(item => item.version = newVersion);
+
+            activityCtx.log("[atom]", "persisted version: " + newVersion);
+            activityCtx.success(activityType, diff);
+          } else {
+            activityCtx.log("[atom]", "skip persisting... due to transaction scope");
+          }
         })
         .catch(async (error) => {
           // TODO: handle custom errors and map to activity?

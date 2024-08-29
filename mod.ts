@@ -17,7 +17,7 @@ export function atom<Schema extends BaseSchema>(
   nsid: NamespacedIdentity,
   defaults: Schema,
 ): Atom<Schema> {
-  return atomFactory<Schema>(identity(nsid), defaults, repository);
+  return atomFactory<Schema>(identity(nsid), defaults, repository, {isInTransactionScope: false});
 }
 
 export function scan(prefix: NamespacedIdentity, start: NamespacedIdentity) {
