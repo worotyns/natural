@@ -5,8 +5,10 @@ import { type JwtVariables } from "jsr:@hono/hono/jwt";
 import { atom, type NamespacedIdentity } from "../../mod.ts";
 import { InvalidStateError } from "../../errors.ts";
 import { services } from "./services.ts";
-import { createOrRestoreUser, userRoles } from "./user.ts";
+import { createOrRestoreUser, userAtom, userRoles } from "./user.ts";
 import { assertHasRole, assertIsAuthorized, createJwtToken } from "./jwt.ts";
+import { assert } from "../../utils.ts";
+import { restore } from "jsr:@std/testing@^1.0.1/mock";
 
 interface AuthorizationViaEmailWithCode {
   user: string;
@@ -51,30 +53,24 @@ const generateCodeAndSend = async (params: StartSignProcess) => {
   const activity = await authorization.do(
     "auth-code-gen-and-send",
     async (ctx) => {
-      await ctx.step("check-user-or-create", async (value) => {
-        value.email = ctx.params.email;
-        const user = await createOrRestoreUser({ email: ctx.params.email });
-        value.user = user.nsid;
-      });
+      ctx.value.email = ctx.params.email;
+      const user = await createOrRestoreUser({ email: ctx.params.email });
+      ctx.value.user = user.nsid;
 
-      await ctx.step("code", async (value) => {
-        value.code = await services.generateCode();
-        value.codeExpiresAt = Date.now() + 900_000;
-        value.expireHours = ctx.params.expireHours || 6;
-      });
+      ctx.value.code = await services.generateCode();
+      ctx.value.codeExpiresAt = Date.now() + 900_000;
+      ctx.value.expireHours = ctx.params.expireHours || 6;
 
-      await ctx.step("email", async (value) => {
-        await services.sendEmail(ctx.params.email, ctx.value.code);
-        value.emailSentAt = Date.now();
-      });
+      await services.sendEmail(ctx.params.email, ctx.value.code);
+      ctx.value.emailSentAt = Date.now();
     },
     params,
   );
 
   return {
     nsid: authorization.nsid,
-    success: activity.value.results?.code?.success || false,
-    error: activity.value.results.error?.value || null,
+    success: activity.value.result.success || false,
+    error: activity.value.result.success === false ? activity.value.result.value : null,
   };
 };
 
@@ -87,28 +83,24 @@ const resendCodeForUser = async (params: ResendCodeForUser) => {
   const activity = await authorization.do(
     "auth-code-resend",
     async (ctx) => {
-      await ctx.step("check-timing", () => {
-        if (
-          Date.now() - ctx.value.emailSentAt < 60_000
-        ) {
-          throw new InvalidStateError(
-            "Cannot send code too often, wait 60 seconds",
-          );
-        }
-      });
+      if (
+        Date.now() - ctx.value.emailSentAt < 60_000
+      ) {
+        throw new InvalidStateError(
+          "Cannot send code too often, wait 60 seconds",
+        );
+      }
 
-      await ctx.step("resend-email", async (value) => {
-        await services.sendEmail(ctx.value.email, ctx.value.code);
-        value.emailSentAt = Date.now();
-      });
+      await services.sendEmail(ctx.value.email, ctx.value.code);
+      ctx.value.emailSentAt = Date.now();
     },
     params,
   );
 
   return {
     nsid: authorization.nsid,
-    success: activity.value.results?.code?.success || false,
-    error: activity.value.results.error?.value || null,
+    success: activity.value.result.success || false,
+    error: activity.value.result.success === false ? activity.value.result.value : null,
   };
 };
 
@@ -120,66 +112,66 @@ const checkCodeAndGenerateJWT = async (params: CheckCodeProcess) => {
 
   const activity = await authorization.do(
     "auth-check-code-and-gen-jwt",
-    async (ctx) => {
-      await ctx.step("check-jwt-is-not-generated", (value) => {
-        if (value.jwt) {
-          throw new InvalidStateError(
-            "jwt already generated, can't generate again",
-          );
+    async (authCtx) => {
+      if (authCtx.value.jwt) {
+        throw new InvalidStateError(
+          "jwt already generated, can't generate again",
+        );
+      }
+
+      if (authCtx.value.codeExpiresAt <= Date.now()) {
+        throw new InvalidStateError(
+          "code expired, create new authorization process",
+        );
+      }
+
+      // TODO: jak jest z fabryki atomu, to powinnien nie robic persistance i czekac na zapis reszty jako transakcja
+      const user = await userAtom(authCtx.value.email).fetch();
+
+      await user.do("update-auth-details", async (userCtx) => {
+
+        if (!userCtx.value.meta.createdAt) {
+          userCtx.activity.log('creating new account');
+          // email dzieki za rejestracje, czy cos ;D 
+          userCtx.value.meta.createdAt = Date.now();
         }
-      });
 
-      await ctx.step("check-code-is-not-expired", (value) => {
-        if (value.codeExpiresAt <= Date.now()) {
-          throw new InvalidStateError(
-            "code expired, create new authorization process",
-          );
-        }
-      });
-
-      await ctx.step("fetch-user-and-check-code", async () => {
-        const user = await createOrRestoreUser({ email: ctx.value.email });
-
-        await ctx.step("check-code", async (value) => {
-          if (ctx.params.code === value.code) {
-            await user.do("auth-good-code-given", async (userCtx) => {
-              await userCtx.step("update-last-failed-login", (value) => {
-                value.meta.lastSuccessLoginAt = Date.now();
-                if (!value.meta.activatedAt) {
-                  value.meta.activatedAt = Date.now();
-                }
-              });
-            }, {});
-          } else {
-            await user.do("auth-wrong-code-given", async (userCtx) => {
-              await userCtx.step("update-last-failed-login", (value) => {
-                value.meta.lastFailLoginAt = Date.now();
-              });
-            }, {});
-            throw new InvalidStateError("given code not match");
+        if (authCtx.params.code === authCtx.value.code) {
+          userCtx.value.meta.lastSuccessLoginAt = Date.now();
+          if (!userCtx.value.meta.activatedAt) {
+            userCtx.value.meta.activatedAt = Date.now();
           }
-        });
-      });
+        } else {
+          userCtx.value.meta.lastFailLoginAt = Date.now();
+          throw new InvalidStateError("given code not match");
+        }          
+      }, {})
 
-      await ctx.step("jwt", async (value) => {
-        value.jwt = await createJwtToken({
-          email: ctx.value.email,
-          user: value.user,
-          role: ctx.value.email.endsWith("@wdft.ovh")
-            ? userRoles.get("superuser")!
-            : userRoles.get("user")!,
-          expireHours: ctx.value.expireHours,
+      assert(authCtx.params.code === authCtx.value.code, "given code not match");
+
+      authCtx.value.jwt = await createJwtToken({
+        email: authCtx.value.email,
+        user: authCtx.value.user,
+        role: authCtx.value.email.endsWith("@wdft.ovh")
+          ? userRoles.get("superuser")!
+          : userRoles.get("user")!,
+        expireHours: authCtx.value.expireHours,
         });
-      });
-    },
+      },
     params,
   );
 
+  const restoredUser = await userAtom(
+    authorization.value.email,
+  ).fetch();
+  
+  console.log(activity.version, authorization.version, restoredUser.version);
+
   return {
     nsid: authorization.nsid,
-    success: activity.value.results.jwt?.success || false,
+    success: activity.value.result.success || false,
     jwt: authorization.value.jwt,
-    error: activity.value.results.error?.value || null,
+    error: activity.value.result.success === false ? activity.value.result.value : null,
   };
 };
 

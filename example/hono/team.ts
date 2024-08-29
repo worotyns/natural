@@ -80,21 +80,14 @@ export const createNewTeam = async (name: string, user: Atom<User>): Promise<Ato
     name: name,
   });
 
-  // ka me ha me mocne, trzeba by step wywalic w sumie, wtedy nie potrzebuje resultsa w activity?
-  // w logach bedzie git,
-  // brakuje mi tylko transakcji jak sa nested wartosci, mozna by dodac depsy, jakos?
   await team.do("team-create", async (teamCtx) => {
-    await teamCtx.step("assign-team-owner", async (teamData) => {
-      await user.do('append-team-data', async (userCtx) => {
-        await userCtx.step("append-team-data", (userData) => {
-          userData.teams.push({
-            name: teamCtx.params.name,
-            nsid: team.nsid,
-            role: teamRoles.get('team.owner')!,
-          });
-        });
-      }, {name: teamData.name});
-    });
+    await user.do('append-team-data', async (userCtx) => {
+      userCtx.value.teams.push({
+        name: teamCtx.params.name,
+        nsid: team.nsid,
+        role: teamRoles.get('team.owner')!,
+      });
+    }, {name: teamCtx.value.name});
   }, {name: name})  
   
   return team;

@@ -12,11 +12,10 @@ type Activity = {
   nsid: NamespacedIdentity;
   type: AcitvityType;
   logs: string[];
-  results: {
-    [k: string]: {
-      success: boolean;
-      value: unknown;
-    };
+  time: string;
+  result: {
+    success: boolean;
+    value: unknown;
   };
 };
 
@@ -43,10 +42,6 @@ export interface AtomContext<
   value: Schema;
   params: Params;
   activity: ActivityContext;
-  step(
-    name: string,
-    ctx: (value: Schema) => Voidable<Schema> | Promise<Voidable<Schema>>,
-  ): Promise<Atom<Schema>>;
   atom<Schema extends BaseSchema>(
     nsid: NamespacedIdentityItem | NamespacedIdentity,
     defaults: Schema,
@@ -75,6 +70,7 @@ export type Voidable<T> = void | T;
 
 interface ActivityContext {
   activity: AtomActivity;
+  contextAtoms: Array<Atom<BaseSchema>>;
   log(...msg: string[]): void;
   type(type: AcitvityType): void;
   success(type: AcitvityType, payload: Optional<object>): void;
@@ -85,69 +81,35 @@ function atomContext<
   Schema extends BaseSchema,
   Params extends BaseSchema = Record<string, never>,
 >(
-  fromAtom: Atom<Schema>,
-  defaults: Schema,
+  parentNsid: NamespacedIdentity,
+  temporaryValue: Schema,
   activityContext: ActivityContext,
   repository: Repository,
   params: Params,
 ): AtomContext<Schema, Params> {
   return {
     get value(): Schema {
-      return fromAtom.value;
+      return temporaryValue;
     },
     params: structuredClone(params),
     activity: activityContext,
-    async step(
-      name: string,
-      mutator: (value: Schema) => Voidable<Schema> | Promise<Voidable<Schema>>,
-    ): Promise<Atom<Schema>> {
-      activityContext.log(`[step: ${name}]`, "processing");
-
-      const temporary = structuredClone(fromAtom.value || defaults);
-      
-      const diff: Record<string, unknown> = {};
-
-      // w teorii to do wywalenia? powinnienem opierac sie na "do" i jak jest atom to dorzucac go w persist na transakcje i temat done
-      // zmniejszy mi sie obiekt activity dodatkowo, bo nie bedzie resultsow
-      const call = mutator(createMonitoredObject(temporary, (op: string, prop: string, val: unknown, old: unknown) => {
-        diff[prop] = val;
-        activityContext.log(`[step: ${name}]`, `${op} on ${prop}: old = ${old}, new = ${val}`);
-      }));
-      
-      const promisedCall: Promise<Voidable<Schema>> = ("then" in (call || {}))
-        ? call as Promise<Voidable<Schema>>
-        : Promise.resolve(call);
-
-      const returned = await promisedCall
-        .then((value) => {
-          activityContext.success(name, diff);
-          return value;
-        })
-        .catch((error) => {
-          activityContext.failure(name, {
-            name: error.name,
-            message: error.message,
-          });
-          throw error;
-        });
-
-      fromAtom.value = returned ? returned : temporary;
-      activityContext.log(`[step: ${name}]`, "finished");
-      return fromAtom;
-    },
     atom<Schema extends BaseSchema>(
       nsid: NamespacedIdentityItem | NamespacedIdentity,
       defaults: Schema,
     ): Atom<Schema> {
-      return atomFactory(
+      const freshAtomReference = atomFactory(
         identity(
           nsid.startsWith("ns://")
             ? nsid as NamespacedIdentity
-            : [fromAtom.nsid, nsid].join("/") as NamespacedIdentity,
+            : [parentNsid, nsid].join("/") as NamespacedIdentity,
         ),
         defaults,
         repository,
       );
+
+      this.activity.contextAtoms.push(freshAtomReference);
+
+      return freshAtomReference;
     },
   };
 }
@@ -163,8 +125,12 @@ function activityContext(
     {
       nsid,
       type: "",
+      time: new Date().toISOString(),
       logs: [],
-      results: {},
+      result: {
+        success: false,
+        value: "not started",
+      },
     },
     repository,
   );
@@ -175,7 +141,7 @@ function activityContext(
     const current = getCurrentRunTime();
     activity.value.logs.push(
       createLog(
-        `[${current.toFixed(2)}ms|${(current - lastLogTime).toFixed(2)}ms]`,
+        `${current.toFixed(2)}/${(current - lastLogTime).toFixed(2)}ms|>`,
         ...msg,
       ),
     );
@@ -187,8 +153,8 @@ function activityContext(
     success: boolean,
     value: unknown,
   ): void => {
-    log(`[step: ${type}]`, success ? "success" : "failure");
-    activity.value.results[type] = {
+    log(`[do:${type}]`, success ? "success" : "failure");
+    activity.value.result = {
       success,
       value: value,
     };
@@ -196,6 +162,7 @@ function activityContext(
 
   return {
     activity: activity,
+    contextAtoms: [],
     type(type: AcitvityType): void {
       activity.value.type = type;
     },
@@ -248,9 +215,17 @@ export function atomFactory<Schema extends BaseSchema>(
         activityCtx.log("[atom]", "restored failed, not found");
       }
 
+      const temporary = structuredClone(this.value || defaults);
+      const diff: Record<string, unknown> = {};
+
+      const observableTemporaryValue = createMonitoredObject(temporary, (op: string, prop: string, val: unknown, old: unknown) => {
+        diff[prop] = val;
+        activityCtx.log(`[do:${activityType}]`, `${op} on ${prop}: old=${old}, new=${val}`);
+      })
+      
       const atomCtx = atomContext(
-        this,
-        defaults,
+        this.nsid,
+        observableTemporaryValue,
         activityCtx,
         repository,
         params,
@@ -258,13 +233,16 @@ export function atomFactory<Schema extends BaseSchema>(
 
       await callback(atomCtx)
         .then(async () => {
+          this.value = temporary;
           activityCtx.log("[atom]", "persisting...");
           const newVersion = await repository.persist(
             this,
             activityCtx.activity,
+            ...activityCtx.contextAtoms,
           );
           this.version = newVersion;
           activityCtx.log("[atom]", "persisted version: " + newVersion);
+          activityCtx.success(activityType, diff);
         })
         .catch(async (error) => {
           // TODO: handle custom errors and map to activity?

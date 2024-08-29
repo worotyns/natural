@@ -20,7 +20,7 @@ export function assert(
 }
 
 export const createLog: (...msg: string[]) => string = (...msg: string[]) => {
-  return sprintf("[%s]: %s", new Date().toISOString(), msg.join(" "));
+  return msg.join(" ");
 };
 
 export const measure: () => () => number = () => {

@@ -1,7 +1,7 @@
 import { type Context, Hono } from "jsr:@hono/hono";
 import type { NamespacedIdentity } from "../../atom.ts";
 import { identity } from "../../identity.ts";
-import { atom } from "../../mod.ts";
+import { Atom, atom } from "../../mod.ts";
 import { assertIsAuthorized } from "./jwt.ts";
 import type { JwtVariables } from "jsr:@hono/hono/jwt";
 import { flags } from "../../permission.ts";
@@ -46,20 +46,22 @@ function defaults(email: string): User {
   };
 }
 
+export const userAtom = (email: string, contextAtomFactory = atom): Atom<User> => {
+  return contextAtomFactory<User>(
+    identity("users", email),
+    defaults(email),
+  );
+}
+
 export const createOrRestoreUser = async (params: CreateUser) => {
-  const user = await atom<User>(
-    identity("users", params.email),
-    defaults(params.email),
-  ).fetch();
+  const user = await userAtom(params.email).fetch();
 
   if (user.value.meta.createdAt === 0) {
     await user.do(
       "user-created",
       async (ctx) => {
         if (!ctx.value.meta.createdAt) {
-          await ctx.step("set-defaults", (value) => {
-            value.meta.createdAt = Date.now();
-          });
+          ctx.value.meta.createdAt = Date.now();
         }
       },
       params,
@@ -88,14 +90,15 @@ app.put("/users/me", assertIsAuthorized, async (c: Context) => {
   const user = await createOrRestoreUser(data);
   const payload = await c.req.json();
 
-  await user.do("user-change-data", async (ctx) => {
+  const activity = await user.do("user-change-data", async (ctx) => {
     if (ctx.params.name) {
-      await ctx.step("change-name", (value) => {
-        value.name = ctx.params.name;
-      });
+      ctx.value.name = ctx.params.name;
     }
   }, {
     name: payload.name,
   });
+
+  console.log(activity);
+
   return c.json(user.value);
 });
