@@ -1,9 +1,10 @@
 import { main } from "./main.ts";
 import { assert, assertEquals, stub } from "../../testing.ts";
 import { services } from "./services.ts";
+import { userRoles } from "./user.ts";
 
 Deno.test("/auth", async () => {
-  stub(services, "generateCode", () => Promise.resolve(123456));
+  const generatedCodeStub = stub(services, "generateCode", () => Promise.resolve(123456));
 
   const sendCode = await main.request("/auth/sign", {
     method: "POST",
@@ -91,9 +92,9 @@ Deno.test("/auth", async () => {
   const checkAuthResponse = await checkAuth.json();
   assertEquals(checkAuth.status, 200);
   assert(checkAuthResponse.user);
+  assertEquals(checkAuthResponse.role, userRoles.get('user'));
   assert(checkAuthResponse.iat);
   assert(checkAuthResponse.exp);
-
 
   const getUser = await main.request("/users/me", {
     method: "GET",
@@ -124,4 +125,82 @@ Deno.test("/auth", async () => {
   assertEquals(editUserNameResponse.email, "a@a.com");
   assertEquals(editUserNameResponse.name, "my-name");
 
+  generatedCodeStub.restore();
+});
+
+
+Deno.test("/auth as superuser", async () => {
+  const generatedCodeStub = stub(services, "generateCode", () => Promise.resolve(123456));
+
+  const sendCode = await main.request("/auth/sign", {
+    method: "POST",
+    body: JSON.stringify({
+      email: "mati@wdft.ovh",
+      expire_hours: 3,
+    }),
+  });
+
+  const sendCodeResponse = await sendCode.json();
+
+  assertEquals(sendCode.status, 200);
+  assertEquals(sendCodeResponse.success, true);
+
+  const tryToResendBefore60Sec = await main.request("/auth/sign/resend", {
+    method: "POST",
+    body: JSON.stringify({
+      nsid: sendCodeResponse.nsid,
+      email: "mati@wdft.ovh",
+    }),
+  });
+
+  const tryToResendBefore60SecResponse = await tryToResendBefore60Sec.json();
+
+  assertEquals(tryToResendBefore60Sec.status, 200);
+  assertEquals(tryToResendBefore60SecResponse.success, false);
+  assertEquals(
+    tryToResendBefore60SecResponse.error,
+    "Cannot send code too often, wait 60 seconds",
+  );
+
+  const enterGoodCode = await main.request("/auth/confirm", {
+    method: "POST",
+    body: JSON.stringify({
+      nsid: sendCodeResponse.nsid,
+      code: 123456,
+    }),
+  });
+
+  const enterGoodCodeResponse = await enterGoodCode.json();
+
+  assertEquals(enterGoodCode.status, 200);
+  assertEquals(enterGoodCodeResponse.success, true);
+  assertEquals(enterGoodCodeResponse.error, null);
+  assert(enterGoodCodeResponse.jwt, "jwt exists");
+
+  const checkAuth: any = await main.request("/auth/authorized/admin", {
+    method: "GET",
+    headers: {
+      "Authorization": `Bearer ${enterGoodCodeResponse.jwt}`,
+    },
+  });
+
+  assertEquals(checkAuth.status, 200);
+  const checkAuthResponse = await checkAuth.json();
+  assert(checkAuthResponse.user);
+  assertEquals(checkAuthResponse.role, userRoles.get('superuser'));
+  assert(checkAuthResponse.iat);
+  assert(checkAuthResponse.exp);
+
+  const getUser = await main.request("/users/me", {
+    method: "GET",
+    headers: {
+      "Authorization": `Bearer ${enterGoodCodeResponse.jwt}`,
+    },
+  });
+
+  const getUserResponse = await getUser.json();
+  assertEquals(getUser.status, 200);
+  assertEquals(getUserResponse.email, "mati@wdft.ovh");
+
+  generatedCodeStub.restore()
 });

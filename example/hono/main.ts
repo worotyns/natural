@@ -3,6 +3,8 @@ import { app as authApp } from "./auth.ts";
 import { app as userApp } from "./user.ts";
 
 // TODO:
+// Add role to user and JWT
+// Prepare admin "scan" activites endpoint
 // Create a team
 // Invite people to a team
 // People can assign to notifications

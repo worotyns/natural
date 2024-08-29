@@ -4,6 +4,7 @@ import { identity } from "../../identity.ts";
 import { atom } from "../../mod.ts";
 import { assertIsAuthorized } from "./jwt.ts";
 import type { JwtVariables } from "jsr:@hono/hono/jwt";
+import { flags } from "../../permission.ts";
 
 interface Team {
   name: string;
@@ -68,7 +69,12 @@ export const createOrRestoreUser = async (params: CreateUser) => {
   return user;
 };
 
+const roles = [
+  "superuser",
+  "user",
+] as const;
 
+export const userRoles = flags<typeof roles>(roles);
 export const app = new Hono<{ Variables: JwtVariables }>();
 
 app.get("/users/me", assertIsAuthorized, async (c: Context) => {
