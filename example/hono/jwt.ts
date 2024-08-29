@@ -1,11 +1,28 @@
 import { HTTPException } from "jsr:@hono/hono/http-exception";
 import type { Context, Next } from "jsr:@hono/hono";
-import { jwt } from "jsr:@hono/hono/jwt";
+import { jwt, sign } from "jsr:@hono/hono/jwt";
 import { assert } from "../../utils.ts";
 import { has } from "../../permission.ts";
 
 export const JWT_SECRET = Deno.env.get("JWT_SECRET") ||
   "my-very-very-secret-variable-used-as-jwt-secret";
+
+interface JwtData {
+  user: string;
+  email: string;
+  role: number;
+  expireHours: number;
+}
+
+export const createJwtToken = (data: JwtData) => {
+  return sign({
+    user: data.user,
+    email: data.email,
+    role: data.role,
+    iat: Math.floor(Date.now() / 1000),
+    exp: Math.floor(Date.now() / 1000) + (3600 * data.expireHours),
+  }, JWT_SECRET)
+}
 
 export const assertIsAuthorized = jwt({
   secret: JWT_SECRET,

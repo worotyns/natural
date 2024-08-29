@@ -1,12 +1,12 @@
 import { type Context, Hono } from "jsr:@hono/hono@^4.5.9";
-import { type JwtVariables, sign } from "jsr:@hono/hono/jwt";
+import { type JwtVariables } from "jsr:@hono/hono/jwt";
 
 // local import normaly from jsr:@worotyns/normal;
 import { atom, type NamespacedIdentity } from "../../mod.ts";
 import { InvalidStateError } from "../../errors.ts";
 import { services } from "./services.ts";
 import { createOrRestoreUser, userRoles } from "./user.ts";
-import { assertHasRole, assertIsAuthorized, JWT_SECRET } from "./jwt.ts";
+import { assertHasRole, assertIsAuthorized, createJwtToken } from "./jwt.ts";
 
 interface AuthorizationViaEmailWithCode {
   user: string;
@@ -162,17 +162,14 @@ const checkCodeAndGenerateJWT = async (params: CheckCodeProcess) => {
       });
 
       await ctx.step("jwt", async (value) => {
-        const jwt = await sign({
+        value.jwt = await createJwtToken({
+          email: ctx.value.email,
           user: value.user,
-          email: value.email,
-          role: value.email.endsWith("@wdft.ovh")
-            ? userRoles.get("superuser")
-            : userRoles.get("user"),
-          iat: Math.floor(Date.now() / 1000),
-          exp: Math.floor(Date.now() / 1000) + (3600 * ctx.value.expireHours),
-        }, JWT_SECRET);
-
-        value.jwt = jwt;
+          role: ctx.value.email.endsWith("@wdft.ovh")
+            ? userRoles.get("superuser")!
+            : userRoles.get("user")!,
+          expireHours: ctx.value.expireHours,
+        });
       });
     },
     params,
