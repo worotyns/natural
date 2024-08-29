@@ -107,6 +107,8 @@ function atomContext<
       
       const diff: Record<string, unknown> = {};
 
+      // w teorii to do wywalenia? powinnienem opierac sie na "do" i jak jest atom to dorzucac go w persist na transakcje i temat done
+      // zmniejszy mi sie obiekt activity dodatkowo, bo nie bedzie resultsow
       const call = mutator(createMonitoredObject(temporary, (op: string, prop: string, val: unknown, old: unknown) => {
         diff[prop] = val;
         activityContext.log(`[step: ${name}]`, `${op} on ${prop}: old = ${old}, new = ${val}`);

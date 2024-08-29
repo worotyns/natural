@@ -55,6 +55,8 @@ interface CreateTeamDto {
   name: string;
 }
 
+// anty pattern w sumie zrobilem,
+// atom pwoinnien byc stworzony z kontekstu, wtedy bede mial jak robic transakcyjnosc?
 export const createNewTeam = async (name: string, user: Atom<User>): Promise<Atom<Team>> => {
   const team = atom<Team>(identity('ns://teams/:ulid', slug(name)), {
     members: [
@@ -78,6 +80,9 @@ export const createNewTeam = async (name: string, user: Atom<User>): Promise<Ato
     name: name,
   });
 
+  // ka me ha me mocne, trzeba by step wywalic w sumie, wtedy nie potrzebuje resultsa w activity?
+  // w logach bedzie git,
+  // brakuje mi tylko transakcji jak sa nested wartosci, mozna by dodac depsy, jakos?
   await team.do("team-create", async (teamCtx) => {
     await teamCtx.step("assign-team-owner", async (teamData) => {
       await user.do('append-team-data', async (userCtx) => {
