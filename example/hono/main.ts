@@ -1,5 +1,6 @@
 import { Hono } from "jsr:@hono/hono@^4.5.9";
-import { app } from "./auth.ts";
+import { app as authApp } from "./auth.ts";
+import { app as userApp } from "./user.ts";
 
 // TODO:
 // Create a team
@@ -9,9 +10,9 @@ import { app } from "./auth.ts";
 // On scan QR -> register scan action and send webhook (retry if failed, exponential 3 times)
 // Send push notification to user
 
-const main = new Hono();
+export const main = new Hono();
 
-main.route("/", app);
-// main.route('/', health);
+main.route("/", authApp);
+main.route('/', userApp);
 
 Deno.serve(main.fetch);

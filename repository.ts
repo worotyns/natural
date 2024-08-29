@@ -29,7 +29,7 @@ export const memoryRuntime = async (): Promise<Repository> => {
       return item;
     },
     persist: async (...items: Atom<BaseSchema>[]): Promise<Versionstamp> => {
-      let lastVer: Versionstamp = "";
+      let lastVer: Versionstamp = ulid();
 
       for (const item of items) {
         const currentItem = await store.get(item.nsid);
@@ -48,7 +48,7 @@ export const memoryRuntime = async (): Promise<Repository> => {
             "Cannot commit transaction due to version errors",
           );
         }
-        item.version = lastVer = ulid();
+        item.version = lastVer;
         await store.set(item.nsid, {
           key: item.nsid,
           val: item.value,

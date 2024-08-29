@@ -2,15 +2,16 @@ import { type Context, Hono } from "jsr:@hono/hono@^4.5.9";
 import { jwt, type JwtVariables, sign } from "jsr:@hono/hono/jwt";
 
 // local import normaly from jsr:@worotyns/normal;
-import { Atom, atom, type NamespacedIdentity } from "../../mod.ts";
-import { assert } from "../../utils.ts";
+import { atom, type NamespacedIdentity } from "../../mod.ts";
 import { InvalidStateError } from "../../errors.ts";
 import { services } from "./services.ts";
-import { createOrRestoreUser, User } from "./user.ts";
+import { createOrRestoreUser } from "./user.ts";
+import { assertIsAuthorized, JWT_SECRET } from "./jwt.ts";
 
 interface AuthorizationViaEmailWithCode {
   user: string;
   code: number;
+  codeExpiresAt: number;
   email: string;
   emailSentAt: number;
   expireHours: number;
@@ -20,6 +21,7 @@ interface AuthorizationViaEmailWithCode {
 const AUTH_DEFAULT_VALUES: AuthorizationViaEmailWithCode = {
   user: "",
   email: "",
+  codeExpiresAt: 0,
   code: 0,
   emailSentAt: 0,
   expireHours: 6,
@@ -52,12 +54,12 @@ const generateCodeAndSend = async (params: StartSignProcess) => {
       await ctx.step("check-user-or-create", async (value) => {
         value.email = ctx.params.email;
         const user = await createOrRestoreUser({ email: ctx.params.email });
-        user.value.activities.push(ctx.activity.activity.nsid);
         value.user = user.nsid;
       });
 
       await ctx.step("code", async (value) => {
         value.code = await services.generateCode();
+        value.codeExpiresAt = Date.now() + 900_000;
         value.expireHours = ctx.params.expireHours || 6;
       });
 
@@ -119,18 +121,25 @@ const checkCodeAndGenerateJWT = async (params: CheckCodeProcess) => {
   const activity = await authorization.do(
     "auth-check-code-and-gen-jwt",
     async (ctx) => {
-      await ctx.step("check-jwt-is-not-generated", () => {
-        if (ctx.value.jwt) {
+      await ctx.step("check-jwt-is-not-generated", (value) => {
+        if (value.jwt) {
           throw new InvalidStateError(
             "jwt already generated, can't generate again",
           );
         }
       });
 
+      await ctx.step("check-code-is-not-expired", (value) => {
+        if (value.codeExpiresAt <= Date.now()) {
+          throw new InvalidStateError(
+            "code expired, create new authorization process",
+          );
+        }
+      });
+
       await ctx.step("fetch-user-and-check-code", async () => {
         const user = await createOrRestoreUser({ email: ctx.value.email });
-        user.value.activities.push(ctx.activity.activity.nsid);
-
+        
         await ctx.step("check-code", async (value) => {
           if (ctx.params.code === value.code) {
             await user.do("good-code-given", async (userCtx) => {
@@ -154,7 +163,8 @@ const checkCodeAndGenerateJWT = async (params: CheckCodeProcess) => {
 
       await ctx.step("jwt", async (value) => {
         const jwt = await sign({
-          user: ctx.value.user,
+          user: value.user,
+          email: value.email,
           iat: Math.floor(Date.now() / 1000),
           exp: Math.floor(Date.now() / 1000) + (3600 * ctx.value.expireHours),
         }, JWT_SECRET);
@@ -174,13 +184,6 @@ const checkCodeAndGenerateJWT = async (params: CheckCodeProcess) => {
 };
 
 export const app = new Hono<{ Variables: JwtVariables }>();
-
-const JWT_SECRET = Deno.env.get("JWT_SECRET") ||
-  "my-very-very-secret-variable-used-as-jwt-secret";
-
-export const assertIsAuthorized = jwt({
-  secret: JWT_SECRET,
-});
 
 app.post("/auth/sign", async (c) => {
   const data = await c.req.json();

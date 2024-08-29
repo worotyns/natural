@@ -1,12 +1,11 @@
-import { app } from "./auth.ts";
+import { main } from "./main.ts";
 import { assert, assertEquals, stub } from "../../testing.ts";
 import { services } from "./services.ts";
-import { store } from "../../repository.ts";
 
 Deno.test("/auth", async () => {
   stub(services, "generateCode", () => Promise.resolve(123456));
 
-  const sendCode = await app.request("/auth/sign", {
+  const sendCode = await main.request("/auth/sign", {
     method: "POST",
     body: JSON.stringify({
       email: "a@a.com",
@@ -19,7 +18,7 @@ Deno.test("/auth", async () => {
   assertEquals(sendCode.status, 200);
   assertEquals(sendCodeResponse.success, true);
 
-  const tryToResendBefore60Sec = await app.request("/auth/sign/resend", {
+  const tryToResendBefore60Sec = await main.request("/auth/sign/resend", {
     method: "POST",
     body: JSON.stringify({
       nsid: sendCodeResponse.nsid,
@@ -36,7 +35,7 @@ Deno.test("/auth", async () => {
     "Cannot send code too often, wait 60 seconds",
   );
 
-  const enterBadCode = await app.request("/auth/confirm", {
+  const enterBadCode = await main.request("/auth/confirm", {
     method: "POST",
     body: JSON.stringify({
       nsid: sendCodeResponse.nsid,
@@ -51,7 +50,7 @@ Deno.test("/auth", async () => {
   assertEquals(enterBadCodeResponse.success, false);
   assertEquals(enterBadCodeResponse.error, "given code not match");
 
-  const enterGoodCode = await app.request("/auth/confirm", {
+  const enterGoodCode = await main.request("/auth/confirm", {
     method: "POST",
     body: JSON.stringify({
       nsid: sendCodeResponse.nsid,
@@ -66,7 +65,7 @@ Deno.test("/auth", async () => {
   assertEquals(enterGoodCodeResponse.error, null);
   assert(enterGoodCodeResponse.jwt, "jwt exists");
 
-  const enterGoodCodeAgain = await app.request("/auth/confirm", {
+  const enterGoodCodeAgain = await main.request("/auth/confirm", {
     method: "POST",
     body: JSON.stringify({
       nsid: sendCodeResponse.nsid,
@@ -82,7 +81,7 @@ Deno.test("/auth", async () => {
     "jwt already generated, can't generate again",
   );
 
-  const checkAuth = await app.request("/auth/authorized", {
+  const checkAuth = await main.request("/auth/authorized", {
     method: "GET",
     headers: {
       "Authorization": `Bearer ${enterGoodCodeResponse.jwt}`,
@@ -90,9 +89,20 @@ Deno.test("/auth", async () => {
   });
 
   const checkAuthResponse = await checkAuth.json();
-
   assertEquals(checkAuth.status, 200);
   assert(checkAuthResponse.user);
   assert(checkAuthResponse.iat);
   assert(checkAuthResponse.exp);
+
+
+  const getUser = await main.request("/users/me", {
+    method: "GET",
+    headers: {
+      "Authorization": `Bearer ${enterGoodCodeResponse.jwt}`,
+    },
+  });
+
+  const getUserResponse = await getUser.json();
+  assertEquals(getUser.status, 200);
+  console.log(getUserResponse)
 });
