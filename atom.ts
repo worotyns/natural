@@ -1,4 +1,5 @@
 import { identity } from "./identity.ts";
+import { createMonitoredObject } from "./proxy.ts";
 import { createLog, measure } from "./utils.ts";
 
 export type NamespacedIdentityItem = string;
@@ -103,15 +104,21 @@ function atomContext<
       activityContext.log(`[step: ${name}]`, "processing");
 
       const temporary = structuredClone(fromAtom.value || defaults);
-      const call = mutator(temporary);
+      
+      const diff: Record<string, unknown> = {};
+      
+      const call = mutator(createMonitoredObject(temporary, (_op: string, prop: string, val: unknown) => {
+        diff[prop] = val;
+      }));
+      
       const promisedCall: Promise<Voidable<Schema>> = ("then" in (call || {}))
         ? call as Promise<Voidable<Schema>>
         : Promise.resolve(call);
 
       const returned = await promisedCall
         .then((value) => {
-          activityContext.success(name, value || temporary);
-          return value || temporary;
+          activityContext.success(name, diff);
+          return value;
         })
         .catch((error) => {
           activityContext.failure(name, {
