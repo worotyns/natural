@@ -104,5 +104,24 @@ Deno.test("/auth", async () => {
 
   const getUserResponse = await getUser.json();
   assertEquals(getUser.status, 200);
-  console.log(getUserResponse)
+  assertEquals(getUserResponse.email, "a@a.com");
+  assertEquals(getUserResponse.name, "");
+
+
+  const editUserName = await main.request("/users/me", {
+    method: "PUT",
+    headers: {
+      "Authorization": `Bearer ${enterGoodCodeResponse.jwt}`,
+    },
+    body: JSON.stringify({
+      name: "my-name",
+    })
+  });
+
+  const editUserNameResponse = await editUserName.json();
+
+  assertEquals(editUserName.status, 200);
+  assertEquals(editUserNameResponse.email, "a@a.com");
+  assertEquals(editUserNameResponse.name, "my-name");
+
 });

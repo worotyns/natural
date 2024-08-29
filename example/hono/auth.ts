@@ -1,5 +1,5 @@
 import { type Context, Hono } from "jsr:@hono/hono@^4.5.9";
-import { jwt, type JwtVariables, sign } from "jsr:@hono/hono/jwt";
+import { type JwtVariables, sign } from "jsr:@hono/hono/jwt";
 
 // local import normaly from jsr:@worotyns/normal;
 import { atom, type NamespacedIdentity } from "../../mod.ts";
@@ -142,7 +142,7 @@ const checkCodeAndGenerateJWT = async (params: CheckCodeProcess) => {
         
         await ctx.step("check-code", async (value) => {
           if (ctx.params.code === value.code) {
-            await user.do("good-code-given", async (userCtx) => {
+            await user.do("auth-good-code-given", async (userCtx) => {
               await userCtx.step("update-last-failed-login", (value) => {
                 value.meta.lastSuccessLoginAt = Date.now();
                 if (!value.meta.activatedAt) {
@@ -151,7 +151,7 @@ const checkCodeAndGenerateJWT = async (params: CheckCodeProcess) => {
               });
             }, {});
           } else {
-            await user.do("wrong-code-given", async (userCtx) => {
+            await user.do("auth-wrong-code-given", async (userCtx) => {
               await userCtx.step("update-last-failed-login", (value) => {
                 value.meta.lastFailLoginAt = Date.now();
               });
