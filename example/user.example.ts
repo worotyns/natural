@@ -12,7 +12,7 @@ const user = atom<User>("ns://users/john@edu.pl", {
   activated: false,
 });
 
-const activity = await user.do('create-user', async (atomContext) => {
+const activity = await user.do("create-user", async (atomContext) => {
   await atomContext.step("example-step", (newValue) => {
     newValue.activated = true;
     newValue.name = "John";
@@ -20,4 +20,4 @@ const activity = await user.do('create-user', async (atomContext) => {
   });
 }, {});
 
-console.log(Deno.inspect({user, activity}, {colors: true, depth: 10}));
+console.log(Deno.inspect({ user, activity }, { colors: true, depth: 10 }));

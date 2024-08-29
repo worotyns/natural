@@ -4,3 +4,5 @@ export {
   assertInstanceOf,
   assertRejects,
 } from "@std/assert";
+
+export { spy, stub } from "@std/testing/mock";

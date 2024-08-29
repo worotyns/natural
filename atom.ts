@@ -30,14 +30,24 @@ export interface Atom<Schema extends BaseSchema> {
   nsid: NamespacedIdentity;
   value: Schema;
   version: Versionstamp;
-  do<Params extends BaseSchema = Record<string, never>>(activityType: AcitvityType, ctx: (ctx: AtomContext<Schema, Params>) => Promise<void>, params: Params): Promise<AtomActivity>;
+  do<Params extends BaseSchema = Record<string, never>>(
+    activityType: AcitvityType,
+    ctx: (ctx: AtomContext<Schema, Params>) => Promise<void>,
+    params: Params,
+  ): Promise<AtomActivity>;
 }
 
-export interface AtomContext<Schema extends BaseSchema, Params extends BaseSchema> {
+export interface AtomContext<
+  Schema extends BaseSchema,
+  Params extends BaseSchema,
+> {
   value: Schema;
   params: Params;
   activity: ActivityContext;
-  step(name: string, ctx: (value: Schema) => Voidable<Schema> | Promise<Voidable<Schema>>): Promise<Atom<Schema>>;
+  step(
+    name: string,
+    ctx: (value: Schema) => Voidable<Schema> | Promise<Voidable<Schema>>,
+  ): Promise<Atom<Schema>>;
   atom<Schema extends BaseSchema>(
     nsid: NamespacedIdentityItem | NamespacedIdentity,
     defaults: Schema,
@@ -72,7 +82,10 @@ interface ActivityContext {
   failure(type: AcitvityType, payload: Optional<object>): void;
 }
 
-function atomContext<Schema extends BaseSchema, Params extends BaseSchema = Record<string, never>>(
+function atomContext<
+  Schema extends BaseSchema,
+  Params extends BaseSchema = Record<string, never>,
+>(
   fromAtom: Atom<Schema>,
   defaults: Schema,
   activityContext: ActivityContext,
@@ -85,27 +98,32 @@ function atomContext<Schema extends BaseSchema, Params extends BaseSchema = Reco
     },
     params: structuredClone(params),
     activity: activityContext,
-    async step(name: string, mutator: (value: Schema) => Voidable<Schema> | Promise<Voidable<Schema>>): Promise<Atom<Schema>> {
-      activityContext.log(`[step: ${name}]`, 'processing');
+    async step(
+      name: string,
+      mutator: (value: Schema) => Voidable<Schema> | Promise<Voidable<Schema>>,
+    ): Promise<Atom<Schema>> {
+      activityContext.log(`[step: ${name}]`, "processing");
 
       const temporary = structuredClone(fromAtom.value || defaults);
       const call = mutator(temporary);
-      const promisedCall: Promise<Voidable<Schema>> = ('then' in (call || {})) ? call as Promise<Voidable<Schema>> : Promise.resolve(call);
-      
+      const promisedCall: Promise<Voidable<Schema>> = ("then" in (call || {}))
+        ? call as Promise<Voidable<Schema>>
+        : Promise.resolve(call);
+
       const returned = await promisedCall
-        .then(value => {
-            activityContext.success(name, value || temporary);
-            return value || temporary;
-          })
-        .catch(error => {
+        .then((value) => {
+          activityContext.success(name, value || temporary);
+          return value || temporary;
+        })
+        .catch((error) => {
           activityContext.failure(name, {
             name: error.name,
             message: error.message,
           });
-      });
+        });
 
       fromAtom.value = returned ? returned : temporary;
-      activityContext.log(`[step: ${name}]`, 'finished');
+      activityContext.log(`[step: ${name}]`, "finished");
       return fromAtom;
     },
     atom<Schema extends BaseSchema>(
@@ -147,7 +165,10 @@ function activityContext(
   const log = (...msg: string[]): void => {
     const current = getCurrentRunTime();
     activity.value.logs.push(
-      createLog(`[${current.toFixed(2)}ms|${(current - lastLogTime).toFixed(2)}ms]`, ...msg),
+      createLog(
+        `[${current.toFixed(2)}ms|${(current - lastLogTime).toFixed(2)}ms]`,
+        ...msg,
+      ),
     );
     lastLogTime = current;
   };
@@ -208,7 +229,13 @@ export function atomFactory<Schema extends BaseSchema>(
         activityCtx.log("[atom]", "restored failed, not found");
       }
 
-      const atomCtx = atomContext(this, defaults, activityCtx, repository, params);
+      const atomCtx = atomContext(
+        this,
+        defaults,
+        activityCtx,
+        repository,
+        params,
+      );
 
       await callback(atomCtx)
         .then(async () => {
@@ -224,7 +251,6 @@ export function atomFactory<Schema extends BaseSchema>(
           // TODO: handle custom errors and map to activity?
           activityCtx.failure("error", error.message);
           await repository.persist(activityCtx.activity);
-          console.error(error);
         });
 
       return activityCtx.activity;
