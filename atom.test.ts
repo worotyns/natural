@@ -1,3 +1,4 @@
+import { assertEquals } from "@std/assert";
 import { identity } from "./identity.ts";
 import { atom } from "./mod.ts";
 
@@ -12,7 +13,7 @@ Deno.test("atom", async () => {
 
   await test.do("sample", async (ctx) => {
     const nestedAtom = ctx.atom("nested", {});
-    console.log(nestedAtom);
+    assertEquals(nestedAtom.nsid, "ns://users/sample/nested");
   }, {});
 });
 
@@ -23,6 +24,6 @@ Deno.test("atom with namespace", async () => {
 
   await test.do("sample", async (ctx) => {
     const aloneAtom = ctx.atom("ns://users/sample@alone.com", {});
-    console.log(aloneAtom);
+    assertEquals(aloneAtom.nsid, "ns://users/sample@alone.com");
   }, {});
 });

@@ -1,6 +1,5 @@
 import { assertEquals } from "@std/assert";
 import { createMonitoredObject } from "./proxy.ts";
-import { assert } from "./utils.ts";
 
 Deno.test('proxy', () => {
   const original = {
