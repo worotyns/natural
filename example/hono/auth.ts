@@ -47,7 +47,7 @@ const generateCodeAndSend = async (params: StartSignProcess) => {
   const activity = await authorization.do(
     "auth-code-gen-and-send",
     async (ctx) => {
-      await ctx.step("check-user-or-create", async (value) => {
+      await ctx.step("check-user-or-create", (value) => {
         value.user = `ns://users/${params.email}`;
       });
 
