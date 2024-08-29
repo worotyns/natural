@@ -1,6 +1,7 @@
 import { app } from "./auth.ts";
 import { assert, assertEquals, stub } from "../../testing.ts";
 import { services } from "./services.ts";
+import { store } from "../../repository.ts";
 
 Deno.test("/auth", async () => {
   stub(services, "generateCode", () => Promise.resolve(123456));
@@ -14,10 +15,8 @@ Deno.test("/auth", async () => {
   });
 
   const sendCodeResponse = await sendCode.json();
-
   assertEquals(sendCode.status, 200);
   assertEquals(sendCodeResponse.success, true);
-
 
   const tryToResendBefore60Sec = await app.request("/auth/sign/resend", {
     method: "POST",
@@ -61,8 +60,20 @@ Deno.test("/auth", async () => {
   assertEquals(enterGoodCode.status, 200);
   assertEquals(enterGoodCodeResponse.success, true);
   assertEquals(enterGoodCodeResponse.error, null);
-
   assert(enterGoodCodeResponse.jwt, 'jwt exists');
+
+  const enterGoodCodeAgain = await app.request("/auth/confirm", {
+    method: "POST",
+    body: JSON.stringify({
+      nsid: sendCodeResponse.nsid,
+      code: 123456,
+    }),
+  });
+  const enterGoodCodeAgainResponse = await enterGoodCodeAgain.json();
+
+  assertEquals(enterGoodCode.status, 200);
+  assertEquals(enterGoodCodeAgainResponse.success, false);
+  assertEquals(enterGoodCodeAgainResponse.error, "jwt already generated, can't generate again");
 
   const checkAuth = await app.request("/auth/authorized", {
     method: "GET",
@@ -72,8 +83,11 @@ Deno.test("/auth", async () => {
   });
 
   const checkAuthResponse = await checkAuth.json();
+
   assertEquals(checkAuth.status, 200);
   assert(checkAuthResponse.user);
   assert(checkAuthResponse.iat);
   assert(checkAuthResponse.exp);
+
+  console.log(store);
 });

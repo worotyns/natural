@@ -1,11 +1,8 @@
-import { createLog, measure, ulid } from "./utils.ts";
+import { identity } from "./identity.ts";
+import { createLog, measure } from "./utils.ts";
 
-type NamespacedIdentityItem = string;
+export type NamespacedIdentityItem = string;
 export type NamespacedIdentity = `ns://${NamespacedIdentityItem}`;
-
-function compileIdentity(nsid: NamespacedIdentity): NamespacedIdentity {
-  return nsid.replace(":ulid", ulid()) as NamespacedIdentity;
-}
 
 export type Versionstamp = string;
 
@@ -120,6 +117,7 @@ function atomContext<
             name: error.name,
             message: error.message,
           });
+          throw error;
         });
 
       fromAtom.value = returned ? returned : temporary;
@@ -131,7 +129,7 @@ function atomContext<
       defaults: Schema,
     ): Atom<Schema> {
       return atomFactory(
-        compileIdentity(
+        identity(
           nsid.startsWith("ns://")
             ? nsid as NamespacedIdentity
             : [fromAtom.nsid, nsid].join("/") as NamespacedIdentity,
@@ -150,7 +148,7 @@ function activityContext(
   const getCurrentRunTime = measure();
 
   const activity = atomFactory<Activity>(
-    compileIdentity("ns://activity/:ulid"),
+    identity("ns://activity/:ulid"),
     {
       nsid,
       type: "",
@@ -206,7 +204,7 @@ export function atomFactory<Schema extends BaseSchema>(
   repository: Repository,
 ): Atom<Schema> {
   return {
-    nsid: compileIdentity(nsid),
+    nsid: identity(nsid),
     value: structuredClone(defaults),
     version: "",
     async do<Params extends BaseSchema = Record<string, never>>(

@@ -6,6 +6,7 @@ import {
 } from "./atom.ts";
 import { denoRuntime, memoryRuntime } from "./repository.ts";
 export type { Atom, AtomContext, NamespacedIdentity } from "./atom.ts";
+export { identity } from "./identity.ts";
 
 const repository = (Deno.env.get("DENO_ENV")?.startsWith("prod"))
   ? await denoRuntime()

@@ -2,14 +2,16 @@ import { type Context, Hono } from "jsr:@hono/hono@^4.5.9";
 import { jwt, type JwtVariables, sign } from "jsr:@hono/hono/jwt";
 
 // local import normaly from jsr:@worotyns/normal;
-import { atom, type NamespacedIdentity } from "../../mod.ts";
+import { Atom, atom, type NamespacedIdentity } from "../../mod.ts";
 import { assert } from "../../utils.ts";
 import { InvalidStateError } from "../../errors.ts";
 import { services } from "./services.ts";
+import { createOrRestoreUser, User } from "./user.ts";
 
 interface AuthorizationViaEmailWithCode {
   user: string;
   code: number;
+  email: string;
   emailSentAt: number;
   expireHours: number;
   jwt: string;
@@ -17,6 +19,7 @@ interface AuthorizationViaEmailWithCode {
 
 const AUTH_DEFAULT_VALUES: AuthorizationViaEmailWithCode = {
   user: "",
+  email: "",
   code: 0,
   emailSentAt: 0,
   expireHours: 6,
@@ -30,7 +33,6 @@ interface StartSignProcess {
 
 interface ResendCodeForUser {
   nsid: NamespacedIdentity;
-  email: string;
 }
 
 interface CheckCodeProcess {
@@ -47,8 +49,11 @@ const generateCodeAndSend = async (params: StartSignProcess) => {
   const activity = await authorization.do(
     "auth-code-gen-and-send",
     async (ctx) => {
-      await ctx.step("check-user-or-create", (value) => {
-        value.user = `ns://users/${params.email}`;
+      await ctx.step("check-user-or-create", async (value) => {
+        value.email = ctx.params.email;
+        const user = await createOrRestoreUser({ email: ctx.params.email });
+        user.value.activities.push(ctx.activity.activity.nsid);
+        value.user = user.nsid;
       });
 
       await ctx.step("code", async (value) => {
@@ -91,7 +96,7 @@ const resendCodeForUser = async (params: ResendCodeForUser) => {
       });
 
       await ctx.step("resend-email", async (value) => {
-        await services.sendEmail(ctx.params.email, ctx.value.code);
+        await services.sendEmail(ctx.value.email, ctx.value.code);
         value.emailSentAt = Date.now();
       });
     },
@@ -114,19 +119,38 @@ const checkCodeAndGenerateJWT = async (params: CheckCodeProcess) => {
   const activity = await authorization.do(
     "auth-check-code-and-gen-jwt",
     async (ctx) => {
-      await ctx.step("check-code", (value) => {
-        assert(
-          ctx.params.code === value.code,
-          "given code not match",
-        );
-      });
 
-      await ctx.step("fetch-user", async (_value) => {
-        // const ctxUser = value.user;
-        // check is not blocked or sth
-        // assert(ctxUser, "user must exsits");
-      });
+      await ctx.step('check-jwt-is-not-generated', () => {
+        if (ctx.value.jwt) {
+          throw new InvalidStateError("jwt already generated, can't generate again");
+        }
+      })
 
+      await ctx.step("fetch-user-and-check-code", async () => {
+        const user = await createOrRestoreUser({ email: ctx.value.email });
+        user.value.activities.push(ctx.activity.activity.nsid);
+
+        await ctx.step("check-code", async (value) => {
+          if (ctx.params.code === value.code) {
+            await user.do('good-code-given', async (userCtx) => {
+              await userCtx.step('update-last-failed-login', (value) => {
+                value.meta.lastSuccessLoginAt = Date.now();
+                if (!value.meta.activatedAt) {
+                  value.meta.activatedAt = Date.now();
+                }
+              })
+            }, {});
+          } else {
+            await user.do('wrong-code-given', async (userCtx) => {
+              await userCtx.step('update-last-failed-login', (value) => {
+                value.meta.lastFailLoginAt = Date.now();
+              })
+            }, {});
+            throw new InvalidStateError("given code not match");
+          }
+        });
+      });
+      
       await ctx.step("jwt", async (value) => {
         const jwt = await sign({
           user: ctx.value.user,
@@ -136,6 +160,7 @@ const checkCodeAndGenerateJWT = async (params: CheckCodeProcess) => {
 
         value.jwt = jwt;
       });
+
     },
     params,
   );
@@ -175,7 +200,6 @@ app.post("/auth/sign/resend", async (c) => {
 
   const response = await resendCodeForUser({
     nsid: data.nsid,
-    email: data.email,
   });
 
   return c.json(response);
