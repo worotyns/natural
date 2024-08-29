@@ -125,11 +125,9 @@ const checkCodeAndGenerateJWT = async (params: CheckCodeProcess) => {
         );
       }
 
-      // TODO: jak jest z fabryki atomu, to powinnien nie robic persistance i czekac na zapis reszty jako transakcja
-      const user = await userAtom(authCtx.value.email).fetch();
+      const user = await userAtom(authCtx.value.email, authCtx.atom.bind(authCtx)).fetch();
 
       await user.do("update-auth-details", async (userCtx) => {
-
         if (!userCtx.value.meta.createdAt) {
           userCtx.activity.log('creating new account');
           // email dzieki za rejestracje, czy cos ;D 
@@ -145,7 +143,7 @@ const checkCodeAndGenerateJWT = async (params: CheckCodeProcess) => {
           userCtx.value.meta.lastFailLoginAt = Date.now();
           throw new InvalidStateError("given code not match");
         }          
-      }, {})
+      })
 
       assert(authCtx.params.code === authCtx.value.code, "given code not match");
 
@@ -160,12 +158,6 @@ const checkCodeAndGenerateJWT = async (params: CheckCodeProcess) => {
       },
     params,
   );
-
-  const restoredUser = await userAtom(
-    authorization.value.email,
-  ).fetch();
-  
-  console.log(activity.version, authorization.version, restoredUser.version);
 
   return {
     nsid: authorization.nsid,

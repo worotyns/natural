@@ -58,9 +58,11 @@ interface CreateTeamDto {
 // anty pattern w sumie zrobilem,
 // atom pwoinnien byc stworzony z kontekstu, wtedy bede mial jak robic transakcyjnosc?
 export const createNewTeam = async (name: string, user: Atom<User>): Promise<Atom<Team>> => {
-  const team = atom<Team>(identity('ns://teams/:ulid', slug(name)), {
-    members: [
-      {
+  let team: null | Atom<Team> = null;
+
+  await user.do('create-team', async (userCtx) => {
+    team = userCtx.atom<Team>(identity('ns://teams/:ulid', slug(name)), {
+      members: [{
         role: teamRoles.get('team.owner')!,
         email: user.value.email,
         nsid: user.nsid,
@@ -69,28 +71,26 @@ export const createNewTeam = async (name: string, user: Atom<User>): Promise<Ato
           joinedAt: Date.now(),
           invitedBy: user.nsid,
         },
-      }
-    ],
-    invitations: [],
-    qr: [],
-    meta: {
-      createdAt: Date.now(),
-      deletedAt: 0,
-    },
-    name: name,
-  });
+      }],
+      invitations: [],
+      qr: [],
+      meta: {
+        createdAt: Date.now(),
+        deletedAt: 0,
+      },
+      name: name,
+    });
 
-  await team.do("team-create", async (teamCtx) => {
-    await user.do('append-team-data', async (userCtx) => {
+    await team.do('assign-team-owner', async (teamCtx) => {
       userCtx.value.teams.push({
-        name: teamCtx.params.name,
-        nsid: team.nsid,
+        name: teamCtx.value.name,
+        nsid: teamCtx.nsid,
         role: teamRoles.get('team.owner')!,
       });
-    }, {name: teamCtx.value.name});
-  }, {name: name})  
-  
-  return team;
+    })
+  });
+
+  return team!;
 }
 
 app.post("/teams", assertIsAuthorized, async (c: Context) => {

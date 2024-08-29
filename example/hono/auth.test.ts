@@ -2,6 +2,7 @@ import { main } from "./main.ts";
 import { assert, assertEquals, stub } from "../../testing.ts";
 import { services } from "./services.ts";
 import { userRoles } from "./user.ts";
+import { store } from "../../repository.ts";
 
 Deno.test("/auth", async () => {
   const generatedCodeStub = stub(
@@ -175,7 +176,9 @@ Deno.test("/auth as superuser", async () => {
   });
 
   const activitiesResponse = await activities.json();
-  assertEquals(activitiesResponse.length, 13);
+  assertEquals(activitiesResponse.length, 11);
+
+  console.log(store)
 
   generatedCodeStub.restore();
 });

@@ -90,15 +90,13 @@ app.put("/users/me", assertIsAuthorized, async (c: Context) => {
   const user = await createOrRestoreUser(data);
   const payload = await c.req.json();
 
-  const activity = await user.do("user-change-data", async (ctx) => {
+  await user.do("user-change-data", async (ctx) => {
     if (ctx.params.name) {
       ctx.value.name = ctx.params.name;
     }
   }, {
     name: payload.name,
   });
-
-  console.log(activity);
 
   return c.json(user.value);
 });

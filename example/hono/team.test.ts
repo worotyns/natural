@@ -10,7 +10,7 @@ Deno.test("team", async () => {
   });
 
   const team = await createNewTeam("test", testUser);
-  
+    
   assertEquals(team.value.members.length, 1);
   assertEquals(testUser.value.teams.length, 1);
 

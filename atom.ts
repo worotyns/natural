@@ -39,6 +39,7 @@ export interface AtomContext<
   Schema extends BaseSchema,
   Params extends BaseSchema,
 > {
+  nsid: NamespacedIdentity;
   value: Schema;
   params: Params;
   activity: ActivityContext;
@@ -89,6 +90,7 @@ function atomContext<
   referenceAtoms: Array<Atom<BaseSchema>> = [],
 ): AtomContext<Schema, Params> {
   return {
+    nsid: parentNsid,
     get value(): Schema {
       return temporaryValue;
     },
@@ -228,7 +230,7 @@ export function atomFactory<Schema extends BaseSchema>(
 
       const observableTemporaryValue = createMonitoredObject(temporary, (op: string, prop: string, val: unknown, old: unknown) => {
         diff[prop] = val;
-        activityCtx.log(`[do:${activityType}]`, `${op} on ${prop}: old=${old}, new=${val}`);
+        activityCtx.log(`[do:${activityType}]`, `${op} on ${prop}: old=${JSON.stringify(old)}, new=${JSON.stringify(val)}`);
       })
       
       const atomCtx = atomContext(
