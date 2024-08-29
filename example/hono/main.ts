@@ -2,7 +2,6 @@ import { Hono } from "jsr:@hono/hono@^4.5.9";
 import { app } from "./auth.ts";
 
 // TODO:
-// Login/signup with code confirmation
 // Create a team
 // Invite people to a team
 // People can assign to notifications
