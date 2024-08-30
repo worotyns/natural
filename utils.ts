@@ -1,5 +1,5 @@
 import { sprintf } from "@std/fmt/printf";
-import { monotonicUlid, ulid as createUlid, decodeTime } from "@std/ulid";
+import { decodeTime, monotonicUlid, ulid as createUlid } from "@std/ulid";
 import { AssertionError, type CoreError } from "./errors.ts";
 
 export function slug(value: string): string {

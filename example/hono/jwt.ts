@@ -21,8 +21,8 @@ export const createJwtToken = (data: JwtData) => {
     role: data.role,
     iat: Math.floor(Date.now() / 1000),
     exp: Math.floor(Date.now() / 1000) + (3600 * data.expireHours),
-  }, JWT_SECRET)
-}
+  }, JWT_SECRET);
+};
 
 export const assertIsAuthorized = jwt({
   secret: JWT_SECRET,

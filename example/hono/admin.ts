@@ -13,6 +13,11 @@ app.get(
   assertIsAuthorized,
   assertHasRole(userRoles.get("superuser")),
   async (c: Context) => {
-    return c.json(await scan(identity("activities"), identity("activities", unixEpochStart)));
+    return c.json(
+      await scan(
+        identity("activities"),
+        identity("activities", unixEpochStart),
+      ),
+    );
   },
 );

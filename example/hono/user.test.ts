@@ -15,13 +15,13 @@ Deno.test("user", async () => {
   assert(restored.version === testUser.version);
 });
 
-Deno.test('/users/me', async () => {
-  await createOrRestoreUser({email: 'a@a.com'});
+Deno.test("/users/me", async () => {
+  await createOrRestoreUser({ email: "a@a.com" });
 
   const jwt = await createJwtToken({
     user: "ns://users/a@a.com",
     email: "a@a.com",
-    role: userRoles.get('user')!,
+    role: userRoles.get("user")!,
     expireHours: 1,
   });
 
@@ -33,7 +33,7 @@ Deno.test('/users/me', async () => {
   });
 
   const getUserResponse = await getUser.json();
-  
+
   assertEquals(getUser.status, 200);
   assertEquals(getUserResponse.email, "a@a.com");
   assertEquals(getUserResponse.name, "");
@@ -53,5 +53,4 @@ Deno.test('/users/me', async () => {
   assertEquals(editUserName.status, 200);
   assertEquals(editUserNameResponse.email, "a@a.com");
   assertEquals(editUserNameResponse.name, "my-name");
-
-})
+});

@@ -1,5 +1,5 @@
 import { type Context, Hono } from "jsr:@hono/hono@^4.5.9";
-import { type JwtVariables } from "jsr:@hono/hono/jwt";
+import type { JwtVariables } from "jsr:@hono/hono/jwt";
 
 // local import normaly from jsr:@worotyns/normal;
 import { atom, type NamespacedIdentity } from "../../mod.ts";
@@ -8,7 +8,6 @@ import { services } from "./services.ts";
 import { createOrRestoreUser, userAtom, userRoles } from "./user.ts";
 import { assertHasRole, assertIsAuthorized, createJwtToken } from "./jwt.ts";
 import { assert } from "../../utils.ts";
-import { restore } from "jsr:@std/testing@^1.0.1/mock";
 
 interface AuthorizationViaEmailWithCode {
   user: string;
@@ -70,7 +69,9 @@ const generateCodeAndSend = async (params: StartSignProcess) => {
   return {
     nsid: authorization.nsid,
     success: activity.value.result.success || false,
-    error: activity.value.result.success === false ? activity.value.result.value : null,
+    error: activity.value.result.success === false
+      ? activity.value.result.value
+      : null,
   };
 };
 
@@ -100,7 +101,9 @@ const resendCodeForUser = async (params: ResendCodeForUser) => {
   return {
     nsid: authorization.nsid,
     success: activity.value.result.success || false,
-    error: activity.value.result.success === false ? activity.value.result.value : null,
+    error: activity.value.result.success === false
+      ? activity.value.result.value
+      : null,
   };
 };
 
@@ -125,12 +128,15 @@ const checkCodeAndGenerateJWT = async (params: CheckCodeProcess) => {
         );
       }
 
-      const user = await userAtom(authCtx.value.email, authCtx.atom.bind(authCtx)).fetch();
+      const user = await userAtom(
+        authCtx.value.email,
+        authCtx.atom.bind(authCtx),
+      ).fetch();
 
-      await user.do("update-auth-details", async (userCtx) => {
+      await user.do("update-auth-details", (userCtx) => {
         if (!userCtx.value.meta.createdAt) {
-          userCtx.activity.log('creating new account');
-          // email dzieki za rejestracje, czy cos ;D 
+          userCtx.activity.log("creating new account");
+          // email dzieki za rejestracje, czy cos ;D
           userCtx.value.meta.createdAt = Date.now();
         }
 
@@ -142,10 +148,13 @@ const checkCodeAndGenerateJWT = async (params: CheckCodeProcess) => {
         } else {
           userCtx.value.meta.lastFailLoginAt = Date.now();
           throw new InvalidStateError("given code not match");
-        }          
-      })
+        }
+      });
 
-      assert(authCtx.params.code === authCtx.value.code, "given code not match");
+      assert(
+        authCtx.params.code === authCtx.value.code,
+        "given code not match",
+      );
 
       authCtx.value.jwt = await createJwtToken({
         email: authCtx.value.email,
@@ -154,8 +163,8 @@ const checkCodeAndGenerateJWT = async (params: CheckCodeProcess) => {
           ? userRoles.get("superuser")!
           : userRoles.get("user")!,
         expireHours: authCtx.value.expireHours,
-        });
-      },
+      });
+    },
     params,
   );
 
@@ -163,7 +172,9 @@ const checkCodeAndGenerateJWT = async (params: CheckCodeProcess) => {
     nsid: authorization.nsid,
     success: activity.value.result.success || false,
     jwt: authorization.value.jwt,
-    error: activity.value.result.success === false ? activity.value.result.value : null,
+    error: activity.value.result.success === false
+      ? activity.value.result.value
+      : null,
   };
 };
 

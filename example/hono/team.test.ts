@@ -13,7 +13,7 @@ Deno.test("team", async () => {
   });
 
   const team = await createNewTeam("test", testUser);
-    
+
   assertEquals(team.value.members.length, 1);
   assertEquals(testUser.value.teams.length, 1);
 
@@ -25,13 +25,13 @@ Deno.test("team", async () => {
   assertEquals(team.nsid, owner.nsid);
 });
 
-Deno.test('/teams create a team', async () => {
-  await createOrRestoreUser({email: 'a@a.com'});
+Deno.test("/teams create a team", async () => {
+  await createOrRestoreUser({ email: "a@a.com" });
 
   const jwt = await createJwtToken({
     user: "ns://users/a@a.com",
     email: "a@a.com",
-    role: userRoles.get('user')!,
+    role: userRoles.get("user")!,
     expireHours: 1,
   });
 
@@ -41,12 +41,11 @@ Deno.test('/teams create a team', async () => {
       "Authorization": `Bearer ${jwt}`,
     },
     body: JSON.stringify({
-      name: "My Team"
-    })
+      name: "My Team",
+    }),
   });
 
   const createTeamResponse = await createTeam.json();
-  console.log(createTeamResponse);  
+  console.log(createTeamResponse);
   assertEquals(createTeam.status, 200);
-
-})
+});

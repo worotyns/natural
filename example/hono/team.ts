@@ -13,16 +13,16 @@ interface Meta {
 }
 
 interface MemberMeta {
-  state: "invited" | "joined" | "owner"
-  joinedAt: number
-  invitedBy: NamespacedIdentity
+  state: "invited" | "joined" | "owner";
+  joinedAt: number;
+  invitedBy: NamespacedIdentity;
 }
 
 interface Member {
   role: number;
   email: string;
   nsid: NamespacedIdentity;
-  meta: MemberMeta
+  meta: MemberMeta;
 }
 
 interface QrMeta {
@@ -57,13 +57,16 @@ interface CreateTeamDto {
 
 // anty pattern w sumie zrobilem,
 // atom pwoinnien byc stworzony z kontekstu, wtedy bede mial jak robic transakcyjnosc?
-export const createNewTeam = async (name: string, user: Atom<User>): Promise<Atom<Team>> => {
+export const createNewTeam = async (
+  name: string,
+  user: Atom<User>,
+): Promise<Atom<Team>> => {
   let team: null | Atom<Team> = null;
 
-  await user.do('create-team', async (userCtx) => {
-    team = userCtx.atom<Team>(identity('ns://teams/:ulid', slug(name)), {
+  await user.do("create-team", async (userCtx) => {
+    team = userCtx.atom<Team>(identity("ns://teams/:ulid", slug(name)), {
       members: [{
-        role: teamRoles.get('team.owner')!,
+        role: teamRoles.get("team.owner")!,
         email: user.value.email,
         nsid: user.nsid,
         meta: {
@@ -81,17 +84,17 @@ export const createNewTeam = async (name: string, user: Atom<User>): Promise<Ato
       name: name,
     });
 
-    await team.do('assign-team-owner', async (teamCtx) => {
+    await team.do("assign-team-owner", async (teamCtx) => {
       userCtx.value.teams.push({
         name: teamCtx.value.name,
         nsid: teamCtx.nsid,
-        role: teamRoles.get('team.owner')!,
+        role: teamRoles.get("team.owner")!,
       });
-    })
+    });
   });
 
   return team!;
-}
+};
 
 app.post("/teams", assertIsAuthorized, async (c: Context) => {
   const data = c.get("jwtPayload");

@@ -29,7 +29,7 @@ export const memoryRuntime = async (): Promise<Repository> => {
       return item;
     },
     persist: async (...items: Atom<BaseSchema>[]): Promise<Versionstamp> => {
-      let lastVer: Versionstamp = ulid();
+      const lastVer: Versionstamp = ulid();
 
       for (const item of items) {
         const currentItem = await store.get(item.nsid);
@@ -74,7 +74,7 @@ export const memoryRuntime = async (): Promise<Repository> => {
                 startNs,
               ) > 0
             ) {
-              items.push({...val, key: key, ts: extractDate(key)});
+              items.push({ ...val, key: key, ts: extractDate(key) });
             } else {
               continue;
             }
@@ -100,7 +100,7 @@ function extractDateFromParts(parts: string[]): number {
     if (isUlid(part)) {
       return decodeTime(part);
     }
-  };
+  }
 
   return 0;
 }
@@ -177,7 +177,11 @@ export const denoRuntime = async (): Promise<Repository> => {
           limit: 100,
         })
       ) {
-        activity.push({...item.value, key: item.key, ts: extractDateFromParts(item.key as string[])});
+        activity.push({
+          ...item.value,
+          key: item.key,
+          ts: extractDateFromParts(item.key as string[]),
+        });
       }
 
       return activity;
@@ -186,14 +190,13 @@ export const denoRuntime = async (): Promise<Repository> => {
 };
 
 export async function clearStorage() {
-
   if (!isProd()) {
     store.clear();
   }
 
   const db = await Deno.openKv();
 
-  for await (const item of db.list({prefix: []})) {
+  for await (const item of db.list({ prefix: [] })) {
     await db.delete(item.key);
   }
 
@@ -201,14 +204,13 @@ export async function clearStorage() {
 }
 
 export async function dumpStorage() {
-
   if (!isProd()) {
-    return console.log([...store.keys()])
+    return console.log([...store.keys()]);
   }
 
   const db = await Deno.openKv();
 
-  for await (const item of db.list({prefix: []})) {
+  for await (const item of db.list({ prefix: [] })) {
     console.log(item.key);
   }
 

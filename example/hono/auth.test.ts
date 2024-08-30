@@ -102,7 +102,7 @@ Deno.test("/auth", async () => {
   assertEquals(checkAuthResponse.role, userRoles.get("user"));
   assert(checkAuthResponse.iat);
   assert(checkAuthResponse.exp);
-  
+
   generatedCodeStub.restore();
 });
 

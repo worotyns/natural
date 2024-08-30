@@ -152,10 +152,10 @@ function activityContext(
   const log = (...msg: string[]): void => {
     const current = getCurrentRunTime();
     activity.value.logs.push([
-        `[${new Date().toISOString()}]`,
-        `<${current.toFixed(2)}/${(current - lastLogTime).toFixed(2)}>`,
-        ...msg,
-      ].join(" "));
+      `[${new Date().toISOString()}]`,
+      `<${current.toFixed(2)}/${(current - lastLogTime).toFixed(2)}>`,
+      ...msg,
+    ].join(" "));
     lastLogTime = current;
   };
 
@@ -175,11 +175,14 @@ function activityContext(
     activity: activity,
     registerInActivities(name: string): void {
       referenceAtoms.add(
-        atom<ActivityReference>(identity("ns://activities/:ulid/", slug(name)), {
-          ref: nsid,
-          act: activity.nsid
-        })
-      )
+        atom<ActivityReference>(
+          identity("ns://activities/:ulid/", slug(name)),
+          {
+            ref: nsid,
+            act: activity.nsid,
+          },
+        ),
+      );
     },
     type(type: AcitvityType): void {
       activity.value.type = type;
@@ -195,7 +198,7 @@ function activityContext(
 }
 
 interface AtomOpts {
-  isInTransactionScope: boolean
+  isInTransactionScope: boolean;
   references: Set<Atom<BaseSchema>>;
 }
 
@@ -242,11 +245,19 @@ export function atomFactory<Schema extends BaseSchema>(
       const temporary = structuredClone(this.value || defaults);
       const diff: Record<string, unknown> = {};
 
-      const observableTemporaryValue = createMonitoredObject(temporary, (op: string, prop: string, val: unknown, old: unknown) => {
-        diff[prop] = val;
-        activityCtx.log(`[do:${activityType}]`, `${op} on ${prop}: old=${JSON.stringify(old)}, new=${JSON.stringify(val)}`);
-      })
-      
+      const observableTemporaryValue = createMonitoredObject(
+        temporary,
+        (op: string, prop: string, val: unknown, old: unknown) => {
+          diff[prop] = val;
+          activityCtx.log(
+            `[do:${activityType}]`,
+            `${op} on ${prop}: old=${JSON.stringify(old)}, new=${
+              JSON.stringify(val)
+            }`,
+          );
+        },
+      );
+
       const atomCtx = atomContext(
         this.nsid,
         observableTemporaryValue,
@@ -259,30 +270,40 @@ export function atomFactory<Schema extends BaseSchema>(
       atomCtx.referenceAtoms.add(activityCtx.activity);
 
       const call = callback(atomCtx);
-      const promisiedCall = (call && 'then' in call) ? call : Promise.resolve(call);
+      const promisiedCall = (call && "then" in call)
+        ? call
+        : Promise.resolve(call);
 
       await promisiedCall
         .then(async () => {
           this.value = temporary;
           if (!opts.isInTransactionScope) {
-
             activityCtx.log("[atom]", "persisting...");
 
             const toPersist = [
               this,
               ...atomCtx.referenceAtoms,
-            ]
-        
-            toPersist.forEach(item => activityCtx.log(`[ref:${item.nsid}] persisting...`))
-        
+            ];
+
+            toPersist.forEach((item) =>
+              activityCtx.log(`[ref:${item.nsid}] persisting...`)
+            );
+
             const newVersion = await repository.persist(...toPersist);
-            toPersist.forEach(item => item.version = newVersion);
+            toPersist.forEach((item) => item.version = newVersion);
 
             activityCtx.log("[atom]", "persisted version: " + newVersion);
             activityCtx.success(activityType, diff);
           } else {
-            atomCtx.referenceAtoms.forEach(item => activityCtx.log(`[ref:${item.nsid}] skip persisting... due to transaction scope`))
-            activityCtx.log("[atom]", "skip persisting... due to transaction scope");
+            atomCtx.referenceAtoms.forEach((item) =>
+              activityCtx.log(
+                `[ref:${item.nsid}] skip persisting... due to transaction scope`,
+              )
+            );
+            activityCtx.log(
+              "[atom]",
+              "skip persisting... due to transaction scope",
+            );
           }
         })
         .catch(async (error) => {
