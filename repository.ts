@@ -48,6 +48,7 @@ export const memoryRuntime = async (): Promise<Repository> => {
             "Cannot commit transaction due to version errors",
           );
         }
+        
         item.version = lastVer;
         await store.set(item.nsid, {
           key: item.nsid,
