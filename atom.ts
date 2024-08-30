@@ -43,7 +43,7 @@ export interface AtomContext<
   value: Schema;
   params: Params;
   activity: ActivityContext;
-  referenceAtoms: Array<Atom<BaseSchema>>;
+  referenceAtoms: Set<Atom<BaseSchema>>;
   atom<Schema extends BaseSchema>(
     nsid: NamespacedIdentityItem | NamespacedIdentity,
     defaults: Schema,
@@ -87,7 +87,7 @@ function atomContext<
   activityContext: ActivityContext,
   repository: Repository,
   params: Params,
-  referenceAtoms: Array<Atom<BaseSchema>> = [],
+  referenceAtoms: Set<Atom<BaseSchema>> = new Set(),
 ): AtomContext<Schema, Params> {
   return {
     nsid: parentNsid,
@@ -109,10 +109,10 @@ function atomContext<
         ),
         defaults,
         repository,
-        { isInTransactionScope: true }
+        { isInTransactionScope: true, references: referenceAtoms },
       );
 
-      this.referenceAtoms.push(freshAtomReference);
+      referenceAtoms.add(freshAtomReference);
 
       return freshAtomReference;
     },
@@ -122,11 +122,12 @@ function atomContext<
 function activityContext(
   nsid: NamespacedIdentity,
   repository: Repository,
+  referenceAtoms: Set<Atom<BaseSchema>>,
 ): ActivityContext {
   const getCurrentRunTime = measure();
 
   const activity = atomFactory<Activity>(
-    identity("ns://activity/:ulid"),
+    identity(nsid, "_activity"),
     {
       nsid,
       type: "",
@@ -138,7 +139,7 @@ function activityContext(
       },
     },
     repository,
-    { isInTransactionScope: true },
+    { isInTransactionScope: true, references: referenceAtoms },
   );
 
   let lastLogTime = 0;
@@ -183,6 +184,7 @@ function activityContext(
 
 interface AtomOpts {
   isInTransactionScope: boolean
+  references: Set<Atom<BaseSchema>>;
 }
 
 export function atomFactory<Schema extends BaseSchema>(
@@ -210,7 +212,7 @@ export function atomFactory<Schema extends BaseSchema>(
       callback: (ctx: AtomContext<Schema, Params>) => void | Promise<void>,
       params: Params = {} as Params,
     ): Promise<AtomActivity> {
-      const activityCtx = activityContext(nsid, repository);
+      const activityCtx = activityContext(nsid, repository, opts.references);
       activityCtx.type(activityType);
 
       activityCtx.log("[atom]", "restoring...");
@@ -239,8 +241,10 @@ export function atomFactory<Schema extends BaseSchema>(
         activityCtx,
         repository,
         params,
-        
+        opts.references,
       );
+
+      atomCtx.referenceAtoms.add(activityCtx.activity);
 
       const call = callback(atomCtx);
       const promisiedCall = (call && 'then' in call) ? call : Promise.resolve(call);
@@ -250,10 +254,8 @@ export function atomFactory<Schema extends BaseSchema>(
           this.value = temporary;
           if (!opts.isInTransactionScope) {
             activityCtx.log("[atom]", "persisting...");
-
             const toPersist = [
               this,
-              activityCtx.activity,
               ...atomCtx.referenceAtoms,
             ]
         
@@ -265,6 +267,7 @@ export function atomFactory<Schema extends BaseSchema>(
             activityCtx.log("[atom]", "persisted version: " + newVersion);
             activityCtx.success(activityType, diff);
           } else {
+            atomCtx.referenceAtoms.forEach(item => activityCtx.log(`[ref:${item.nsid}] skip persisting... due to transaction scope`))
             activityCtx.log("[atom]", "skip persisting... due to transaction scope");
           }
         })
