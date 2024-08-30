@@ -14,7 +14,7 @@ Deno.test('proxy', () => {
   const cloned = structuredClone(original);
 
   const changes: any[] = [];
-  const monitoredObject = createMonitoredObject(cloned, (operation: string, prop: string, newValue: unknown, oldValue: unknown) => {
+  const monitoredObject = createMonitoredObject(cloned, (_operation: string, prop: string, newValue: unknown, _oldValue: unknown) => {
     changes.push(`${prop} = ${newValue}`)
   });
 
