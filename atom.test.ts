@@ -64,6 +64,7 @@ Deno.test("atom with nested do ops should persis in one transaction all atoms an
         const next2 = ctx.atom<Sample>("next2", {sample: false});
         const act3 = await next2.do('sample-next2', async (next2Ctx) => {
           next2Ctx.value.sample = true;
+          await new Promise((resolve) => setTimeout(resolve, 10));
         })
         activities.push(act3)
       })

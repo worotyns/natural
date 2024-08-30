@@ -1,6 +1,7 @@
 import { identity } from "./identity.ts";
+import { atom } from "./mod.ts";
 import { createMonitoredObject } from "./proxy.ts";
-import { createLog, measure } from "./utils.ts";
+import { measure, slug } from "./utils.ts";
 
 export type NamespacedIdentityItem = string;
 export type NamespacedIdentity = `ns://${NamespacedIdentityItem}`;
@@ -12,7 +13,6 @@ type Activity = {
   nsid: NamespacedIdentity;
   type: AcitvityType;
   logs: string[];
-  time: string;
   result: {
     success: boolean;
     value: unknown;
@@ -72,6 +72,7 @@ export type Voidable<T> = void | T;
 
 interface ActivityContext {
   activity: AtomActivity;
+  registerInActivities(name: string): void;
   log(...msg: string[]): void;
   type(type: AcitvityType): void;
   success(type: AcitvityType, payload: Optional<object>): void;
@@ -119,6 +120,11 @@ function atomContext<
   };
 }
 
+interface ActivityReference {
+  ref: NamespacedIdentity;
+  act: NamespacedIdentity;
+}
+
 function activityContext(
   nsid: NamespacedIdentity,
   repository: Repository,
@@ -127,11 +133,10 @@ function activityContext(
   const getCurrentRunTime = measure();
 
   const activity = atomFactory<Activity>(
-    identity(nsid, "_activity"),
+    identity(nsid, "__activity"),
     {
       nsid,
       type: "",
-      time: new Date().toISOString(),
       logs: [],
       result: {
         success: false,
@@ -146,12 +151,11 @@ function activityContext(
 
   const log = (...msg: string[]): void => {
     const current = getCurrentRunTime();
-    activity.value.logs.push(
-      createLog(
-        `${current.toFixed(2)}/${(current - lastLogTime).toFixed(2)}ms|>`,
+    activity.value.logs.push([
+        `[${new Date().toISOString()}]`,
+        `<${current.toFixed(2)}/${(current - lastLogTime).toFixed(2)}>`,
         ...msg,
-      ),
-    );
+      ].join(" "));
     lastLogTime = current;
   };
 
@@ -169,6 +173,14 @@ function activityContext(
 
   return {
     activity: activity,
+    registerInActivities(name: string): void {
+      referenceAtoms.add(
+        atom<ActivityReference>(identity("ns://activities/:ulid/", slug(name)), {
+          ref: nsid,
+          act: activity.nsid
+        })
+      )
+    },
     type(type: AcitvityType): void {
       activity.value.type = type;
     },
@@ -253,7 +265,9 @@ export function atomFactory<Schema extends BaseSchema>(
         .then(async () => {
           this.value = temporary;
           if (!opts.isInTransactionScope) {
+
             activityCtx.log("[atom]", "persisting...");
+
             const toPersist = [
               this,
               ...atomCtx.referenceAtoms,

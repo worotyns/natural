@@ -1,5 +1,5 @@
 import { sprintf } from "@std/fmt/printf";
-import { monotonicUlid } from "@std/ulid";
+import { monotonicUlid, ulid as createUlid, decodeTime } from "@std/ulid";
 import { AssertionError, type CoreError } from "./errors.ts";
 
 export function slug(value: string): string {
@@ -19,10 +19,6 @@ export function assert(
   }
 }
 
-export const createLog: (...msg: string[]) => string = (...msg: string[]) => {
-  return msg.join(" ");
-};
-
 export const measure: () => () => number = () => {
   const now = performance.now();
   return () => {
@@ -30,6 +26,6 @@ export const measure: () => () => number = () => {
   };
 };
 
-export { sprintf };
-
 export const ulid = monotonicUlid;
+export const unixEpochStart = createUlid(Date.UTC(1970, 0, 1, 0, 0, 0, 1));
+export { decodeTime, sprintf };

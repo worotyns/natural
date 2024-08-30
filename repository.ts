@@ -8,7 +8,7 @@ import type {
   Versionstamp,
 } from "./atom.ts";
 import { VersionError } from "./errors.ts";
-import { sprintf, ulid } from "./utils.ts";
+import { decodeTime, sprintf, ulid } from "./utils.ts";
 
 function deserialize(key: NamespacedIdentity) {
   const [ns, path] = key.split("://");
@@ -74,12 +74,12 @@ export const memoryRuntime = async (): Promise<Repository> => {
                 startNs,
               ) > 0
             ) {
-              items.push(val);
+              items.push({...val, key: key, ts: extractDate(key)});
             } else {
               continue;
             }
           } else {
-            items.push(val);
+            items.push({...val, key: key, ts: extractDate(key)});
           }
         }
 
@@ -92,6 +92,26 @@ export const memoryRuntime = async (): Promise<Repository> => {
     },
   };
 };
+
+function isUlid(value: string) {
+  return value.length === 26 && /^[A-Z0-9]+$/.test(value);
+}
+
+function extractDateFromParts(parts: string[]): number {
+  for (const part of parts) {
+    if (isUlid(part)) {
+      return decodeTime(part);
+    }
+  };
+
+  return 0;
+}
+
+function extractDate(key: NamespacedIdentity) {
+  const [_ns, path] = key.split("://");
+  const parts = path.split("/");
+  return extractDateFromParts(parts);
+}
 
 export const denoRuntime = async (): Promise<Repository> => {
   const db = await Deno.openKv();
@@ -159,7 +179,7 @@ export const denoRuntime = async (): Promise<Repository> => {
           limit: 100,
         })
       ) {
-        activity.push(item.value);
+        activity.push({...item.value, key: item.key, ts: extractDateFromParts(item.key as string[])});
       }
 
       return activity;

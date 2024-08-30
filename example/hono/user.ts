@@ -60,6 +60,7 @@ export const createOrRestoreUser = async (params: CreateUser) => {
     await user.do(
       "user-created",
       async (ctx) => {
+        ctx.activity.registerInActivities('new-user');
         if (!ctx.value.meta.createdAt) {
           ctx.value.meta.createdAt = Date.now();
         }
