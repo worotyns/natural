@@ -1,3 +1,4 @@
+import { clearStorage } from "../../repository.ts";
 import { assertEquals } from "../../testing.ts";
 import { createJwtToken } from "./jwt.ts";
 import { app } from "./team.ts";
@@ -5,6 +6,8 @@ import { createNewTeam } from "./team.ts";
 import { createOrRestoreUser, userRoles } from "./user.ts";
 
 Deno.test("team", async () => {
+  await clearStorage();
+
   const testUser = await createOrRestoreUser({
     email: "mati@wp.pl",
   });

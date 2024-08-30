@@ -8,7 +8,7 @@ import type {
   Versionstamp,
 } from "./atom.ts";
 import { VersionError } from "./errors.ts";
-import { decodeTime, sprintf, ulid } from "./utils.ts";
+import { decodeTime, isProd, sprintf, ulid } from "./utils.ts";
 
 function deserialize(key: NamespacedIdentity) {
   const [ns, path] = key.split("://");
@@ -78,8 +78,6 @@ export const memoryRuntime = async (): Promise<Repository> => {
             } else {
               continue;
             }
-          } else {
-            items.push({...val, key: key, ts: extractDate(key)});
           }
         }
 
@@ -186,3 +184,33 @@ export const denoRuntime = async (): Promise<Repository> => {
     },
   };
 };
+
+export async function clearStorage() {
+
+  if (!isProd()) {
+    store.clear();
+  }
+
+  const db = await Deno.openKv();
+
+  for await (const item of db.list({prefix: []})) {
+    await db.delete(item.key);
+  }
+
+  await db.close();
+}
+
+export async function dumpStorage() {
+
+  if (!isProd()) {
+    return console.log([...store.keys()])
+  }
+
+  const db = await Deno.openKv();
+
+  for await (const item of db.list({prefix: []})) {
+    console.log(item.key);
+  }
+
+  await db.close();
+}

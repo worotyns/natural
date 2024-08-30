@@ -2,12 +2,15 @@ import { assert, assertEquals } from "@std/assert";
 import { identity } from "./identity.ts";
 import { atom } from "./mod.ts";
 import type { Atom } from "./atom.ts";
+import { clearStorage } from "./repository.ts";
 
 type Sample = {
   sample: boolean;
 };
 
 Deno.test("atom and nested atom should be update in transaction", async () => {
+  await clearStorage();
+
   const test = atom<Sample>(identity("users/sample"), {
     sample: false,
   });
@@ -35,6 +38,8 @@ Deno.test("atom and nested atom should be update in transaction", async () => {
 });
 
 Deno.test("atom with namespace - should be created not in current namespace but given one", async () => {
+  await clearStorage();
+
   const test = atom<Sample>(identity("users/:ulid"), {
     sample: false,
   });
@@ -50,11 +55,13 @@ Deno.test("atom with namespace - should be created not in current namespace but 
 });
 
 Deno.test("atom with nested do ops should persis in one transaction all atoms and activities", async () => {
+  await clearStorage();
+
   const test = atom<Sample>(identity("users/:ulid"), {
     sample: false,
   });
 
-  let activities = [];
+  const activities = [];
 
   const act1 = await test.do("sample", async (ctx) => {
       ctx.value.sample = true;

@@ -2,9 +2,11 @@ import { main } from "./main.ts";
 import { assert, assertEquals, stub } from "../../testing.ts";
 import { services } from "./services.ts";
 import { userRoles } from "./user.ts";
-import { store } from "../../repository.ts";
+import { clearStorage } from "../../repository.ts";
 
 Deno.test("/auth", async () => {
+  await clearStorage();
+
   const generatedCodeStub = stub(
     services,
     "generateCode",
@@ -105,6 +107,7 @@ Deno.test("/auth", async () => {
 });
 
 Deno.test("/auth as superuser", async () => {
+  await clearStorage();
   const generatedCodeStub = stub(
     services,
     "generateCode",
@@ -176,8 +179,8 @@ Deno.test("/auth as superuser", async () => {
   });
 
   const activitiesResponse = await activities.json();
-  console.log({activitiesResponse});
-  assertEquals(activitiesResponse.length, 2);
+
+  assertEquals(activitiesResponse.length, 1);
 
   generatedCodeStub.restore();
 });

@@ -1,9 +1,12 @@
 import { atom } from "../../mod.ts";
+import { clearStorage } from "../../repository.ts";
 import { assert, assertEquals } from "../../testing.ts";
 import { createJwtToken } from "./jwt.ts";
-import { app, createOrRestoreUser, User, userRoles } from "./user.ts";
+import { app, createOrRestoreUser, userRoles } from "./user.ts";
 
 Deno.test("user", async () => {
+  await clearStorage();
+
   const testUser = await createOrRestoreUser({
     email: "mati@wp.pl",
   });
