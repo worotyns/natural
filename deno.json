@@ -1,6 +1,6 @@
 {
   "name": "@worotyns/natural",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "exports": "./mod.ts",
   "tasks": {
     "test": "deno test -A --unstable-kv .",
