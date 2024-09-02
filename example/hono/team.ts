@@ -1,10 +1,10 @@
 import { type Context, Hono } from "jsr:@hono/hono";
-import { Atom, atom, type NamespacedIdentity } from "../../mod.ts";
+import type { Atom, NamespacedIdentity } from "../../mod.ts";
 import { flags } from "../../permission.ts";
 import type { JwtVariables } from "jsr:@hono/hono/jwt";
 import { assertIsAuthorized } from "./jwt.ts";
-import { createOrRestoreUser, User } from "./user.ts";
-import { assert, slug } from "../../utils.ts";
+import { createOrRestoreUser, type User } from "./user.ts";
+import { slug } from "../../utils.ts";
 import { identity } from "../../identity.ts";
 
 interface Meta {
@@ -84,7 +84,7 @@ export const createNewTeam = async (
       name: name,
     });
 
-    await team.do("assign-team-owner", async (teamCtx) => {
+    await team.do("assign-team-owner", (teamCtx) => {
       userCtx.value.teams.push({
         name: teamCtx.value.name,
         nsid: teamCtx.nsid,
@@ -106,7 +106,7 @@ app.post("/teams", assertIsAuthorized, async (c: Context) => {
 
 app.get("/teams", assertIsAuthorized, async (c: Context) => {
   const data = c.get("jwtPayload");
-  const user = await createOrRestoreUser(data);
-
+  const _user = await createOrRestoreUser(data);
+ 
   return c.json([]);
 });
