@@ -61,10 +61,10 @@ export interface Repository {
   restore<Schema extends BaseSchema>(
     nsid: NamespacedIdentity,
   ): Promise<Optional<StoredItem<Schema>>>;
-  scan(
+  scan<T = AtomActivity>(
     prefix: NamespacedIdentity,
     start: NamespacedIdentity,
-  ): Promise<Array<AtomActivity>>;
+  ): Promise<Array<T>>;
 }
 
 export type Optional<T> = T | null;
@@ -120,7 +120,12 @@ function atomContext<
   };
 }
 
-interface ActivityReference {
+export interface ActivityReference extends ActivityReferenceProps {
+  key: NamespacedIdentity;
+  ts: Number;
+};
+
+interface ActivityReferenceProps {
   ref: NamespacedIdentity;
   act: NamespacedIdentity;
 }
@@ -175,7 +180,7 @@ function activityContext(
     activity: activity,
     registerInActivities(name: string): void {
       referenceAtoms.add(
-        atom<ActivityReference>(
+        atom<ActivityReferenceProps>(
           identity("ns://activities/:ulid/", slug(name)),
           {
             ref: nsid,

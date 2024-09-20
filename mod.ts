@@ -1,4 +1,5 @@
 import {
+ActivityReference,
   type Atom,
   atomFactory,
   type BaseSchema,
@@ -6,7 +7,7 @@ import {
 } from "./atom.ts";
 import { identity } from "./identity.ts";
 import { denoRuntime, memoryRuntime } from "./repository.ts";
-import { isProd } from "./utils.ts";
+import { isProd, type Ulid } from "./utils.ts";
 export type { Atom, AtomContext, NamespacedIdentity } from "./atom.ts";
 export { identity } from "./identity.ts";
 
@@ -22,6 +23,6 @@ export function atom<Schema extends BaseSchema>(
   });
 }
 
-export function scan(prefix: NamespacedIdentity, start: NamespacedIdentity) {
-  return repository.scan(prefix, start);
+export function activities(start: Ulid) {
+  return repository.scan<ActivityReference>(`ns://activities/`, `ns://activities/${start}`);
 }

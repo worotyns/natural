@@ -26,6 +26,7 @@ export const measure: () => () => number = () => {
   };
 };
 
+export type Ulid = string;
 export const ulid = monotonicUlid;
 export const unixEpochStart = createUlid(Date.UTC(1970, 0, 1, 0, 0, 0, 1));
 export { decodeTime, sprintf };
