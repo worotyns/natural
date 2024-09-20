@@ -26,3 +26,7 @@ export function atom<Schema extends BaseSchema>(
 export function activities(start: Ulid) {
   return repository.scan<ActivityReference>(`ns://activities/`, `ns://activities/${start}`);
 }
+
+export function scan(prefix: NamespacedIdentity, start: NamespacedIdentity) {
+  return repository.scan(prefix, start);
+}
