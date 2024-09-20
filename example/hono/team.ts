@@ -107,6 +107,6 @@ app.post("/teams", assertIsAuthorized, async (c: Context) => {
 app.get("/teams", assertIsAuthorized, async (c: Context) => {
   const data = c.get("jwtPayload");
   const _user = await createOrRestoreUser(data);
- 
+
   return c.json([]);
 });

@@ -1,6 +1,7 @@
-// deno-lint-ignore ban-types no-explicit-any
 export function createMonitoredObject(
+  // deno-lint-ignore no-explicit-any
   target: any,
+  // deno-lint-ignore ban-types
   callback: Function,
   path: string = "",
 ) {
