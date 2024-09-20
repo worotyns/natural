@@ -14,7 +14,7 @@ app.get(
   async (c: Context) => {
     return c.json(
       await activities(
-        unixEpochStart
+        unixEpochStart,
       ),
     );
   },

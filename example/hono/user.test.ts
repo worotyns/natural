@@ -1,4 +1,4 @@
-import { atom, activities } from "../../mod.ts";
+import { activities, atom } from "../../mod.ts";
 import { clearStorage } from "../../repository.ts";
 import { assert, assertEquals } from "../../testing.ts";
 import { createJwtToken } from "./jwt.ts";
@@ -18,10 +18,10 @@ Deno.test("user", async () => {
 Deno.test("/users/me", async () => {
   await createOrRestoreUser({ email: "a@a.com" });
 
-  const results = await activities('');
+  const results = await activities("");
 
   for (const act of results) {
-    console.log({act, fetched: await atom(act.act, {}).fetch()});
+    console.log({ act, fetched: await atom(act.act, {}).fetch() });
   }
 
   const jwt = await createJwtToken({

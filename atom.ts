@@ -123,7 +123,7 @@ function atomContext<
 export interface ActivityReference extends ActivityReferenceProps {
   key: NamespacedIdentity;
   ts: Number;
-};
+}
 
 interface ActivityReferenceProps {
   ref: NamespacedIdentity;
