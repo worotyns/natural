@@ -7,31 +7,18 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link href="./src/styles.css" type="text/css" rel="stylesheet">
   </head>
-  <body>
-
+  <body x-cloak>
     <div x-data class="flex h-screen bg-gray-100 text-gray-900 dark:bg-gray-900 dark:text-gray-100">
-
       <!-- Filter Sidebar -->
       <div class="w-3/12 bg-gray-200 dark:bg-gray-800 flex flex-col p-4">
           <h2 class="text-lg font-semibold mb-4">Filter</h2>
-
           <!-- Search Box -->
           <input
-              x-model="searchQuery"
+              x-model="$store.main.searchQuery"
               type="text"
               placeholder="Type to search..."
               class="mb-4 p-3 border border-gray-300 dark:border-gray-700 rounded bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
-
-          <!-- Tabs -->
-          <div class="mb-4">
-              <div class="flex space-x-4">
-                  <button @click="selectedTab = 'Liked'" :class="selectedTab === 'Liked' ? 'bg-blue-500 text-white' : 'bg-gray-300 dark:bg-gray-600 text-gray-900 dark:text-white'" class="px-4 py-2 rounded">Liked</button>
-                  <button @click="selectedTab = 'All'" :class="selectedTab === 'All' ? 'bg-blue-500 text-white' : 'bg-gray-300 dark:bg-gray-600 text-gray-900 dark:text-white'" class="px-4 py-2 rounded">All</button>
-                  <button @click="selectedTab = 'Tree'" :class="selectedTab === 'Tree' ? 'bg-blue-500 text-white' : 'bg-gray-300 dark:bg-gray-600 text-gray-900 dark:text-white'" class="px-4 py-2 rounded">Tree</button>
-              </div>
-          </div>
-
           <!-- List of Items -->
           <div class="flex-1 overflow-y-auto">
               <ul>
@@ -50,44 +37,32 @@
               </ul>
           </div>
       </div>
-
       <!-- Central Content -->
       <div class="w-6/12 bg-gray-200 dark:bg-gray-800 p-4 flex flex-col">
           <div class="overflow-x-auto overflow-y-hidden mb-4">
-              <div class="flex space-x-4">
+              <div class="flex">
                   <template x-for="i in 25">
                       <button
-                          :class="selectedTab === `Tab ${i}` ? 'bg-blue-500 text-white' : 'bg-gray-300 dark:bg-gray-600 text-gray-900 dark:text-white'"
-                          @click="selectedTab = `Tab ${i}`"
-                          class="whitespace-nowrap px-4 py-2 rounded" style="min-width: 100px;"
+                          :class="$store.main.selectedTab === `Tab ${i}` ? 'bg-blue-500 text-white' : 'bg-gray-300 dark:bg-gray-600 text-gray-900 dark:text-white'"
+                          @click="$store.main.selectedTab = `Tab ${i}`"
+                          class="whitespace-nowrap mr-2 px-2 py-2 rounded" style="min-width: 100px;"
                       >
                           Tab <span x-text="i"></span>
                       </button>
                   </template>
               </div>
           </div>
-
           <!-- Top and Bottom Views -->
           <div class="flex flex-col flex-1 space-y-4">
               <div class="flex-1 overflow-y-auto bg-gray-100 dark:bg-gray-700 p-4">
                   <pre class="overflow-y-auto bg-gray-200 dark:bg-gray-800 p-2 border rounded" style="height: 100%;">
-    { "name": "Top View Example", "description": "Sample JSON for Top View", "items": [{ "id": 1, "value": "Item 1" }, { "id": 2, "value": "Item 2" }] }
+XXX
                   </pre>
               </div>
-              <div class="flex-1 overflow-y-auto bg-gray-100 dark:bg-gray-700 p-4">
+              <div class="fpnlex-1 overflow-y-auto bg-gray-100 dark:bg-gray-700 p-4">
                   <pre class="overflow-y-auto bg-gray-200 dark:bg-gray-800 p-2 border rounded" style="height: 100%;">
-    { "name": "Bottom View Example", "description": "Sample JSON for Bottom View", "items": [{ "id": 1, "value": "Item A" }, { "id": 2, "value": "Item B" }] }
-                  </pre>
-              </div>
-          </div>
-
-          <!-- Status Bar -->
-          <div class="flex justify-between items-center mt-5 p-2 bg-gray-200 dark:bg-gray-700 rounded">
-              <span>Version: 1.0.0</span>
-              <span>Loading Time: 120ms</span>
-              <div>
-                  <button class="px-2 py-1 mx-2 bg-green-500 text-white rounded">Refresh</button>
-                  <button class="px-2 py-1 mx-2 bg-red-500 text-white rounded">Archive</button>
+YYY
+                </pre>
               </div>
           </div>
       </div>
@@ -95,7 +70,6 @@
       <!-- Action Sidebar -->
       <div class="w-3/12 bg-gray-200 dark:bg-gray-800 p-4 border-l border-gray-300 dark:border-gray-700 flex flex-col overflow-y-auto">
           <h2 class="text-lg font-semibold mb-4">Actions</h2>
-
           <template x-for="command in $store.main.commands" :key="command.name">
               <div class="bg-gray-100 dark:bg-gray-700 p-4 rounded shadow mb-4">
                   <h3 @click="command.expanded = !command.expanded" class="text-md font-semibold cursor-pointer" x-text="command.name"></h3>
