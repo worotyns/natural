@@ -9,21 +9,7 @@
   </head>
   <body>
 
-    <div x-data="{
-          searchQuery: '',
-          selectedTab: 'Liked',
-          commands: [
-              { name: 'Command Name 1', description: 'Description of command 1.', parameters: ['Date', 'Boolean', 'String', 'Number'], expanded: false },
-              { name: 'Command Name 2', description: 'Description of command 2.', parameters: ['Parameter A', 'Parameter B'], expanded: false },
-              { name: 'Command Name 3', description: 'Description of command 3.', parameters: ['Parameter X', 'Parameter Y'], expanded: false }
-          ],
-          items: Array.from({ length: 30 }, (_, i) => ({
-              date: new Date().toLocaleDateString(),
-              title: `Title ${i + 1}`,
-              description: `Description for item ${i + 1}`,
-              liked: false
-          }))
-      }" class="flex h-screen bg-gray-100 text-gray-900 dark:bg-gray-900 dark:text-gray-100">
+    <div x-data class="flex h-screen bg-gray-100 text-gray-900 dark:bg-gray-900 dark:text-gray-100">
 
       <!-- Filter Sidebar -->
       <div class="w-3/12 bg-gray-200 dark:bg-gray-800 flex flex-col p-4">
@@ -49,7 +35,7 @@
           <!-- List of Items -->
           <div class="flex-1 overflow-y-auto">
               <ul>
-                  <template x-for="(item, index) in items" :key="index">
+                  <template x-for="(item, index) in $store.main.items" :key="index">
                       <li class="mb-4 p-4 border rounded bg-gray-100 dark:bg-gray-700 shadow">
                           <div class="flex justify-between items-center">
                               <div>
@@ -110,7 +96,7 @@
       <div class="w-3/12 bg-gray-200 dark:bg-gray-800 p-4 border-l border-gray-300 dark:border-gray-700 flex flex-col overflow-y-auto">
           <h2 class="text-lg font-semibold mb-4">Actions</h2>
 
-          <template x-for="command in commands" :key="command.name">
+          <template x-for="command in $store.main.commands" :key="command.name">
               <div class="bg-gray-100 dark:bg-gray-700 p-4 rounded shadow mb-4">
                   <h3 @click="command.expanded = !command.expanded" class="text-md font-semibold cursor-pointer" x-text="command.name"></h3>
                   <p class="mb-2 text-gray-700 dark:text-gray-300" x-text="command.description"></p>
