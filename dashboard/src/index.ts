@@ -20,4 +20,25 @@ Alpine.store("main", {
   }))
 })
 
+import {db} from './idb.ts';
+
+async function main() {
+  await db.clear();
+
+  await db.set("key1", { name: "Item 1" });
+
+  const item = await db.get("key1");
+
+  await db.append([{ timestamp: Date.now(), data: "Activity 1" }]);
+  await db.append([{ timestamp: Date.now() - 1000 * 60 * 60 * 20 , data: "Activity 2" }]);
+
+  // const aggregated = await db.aggregate(item => item.data.length);
+  const scanned = await db.scan(Date.now() - 1000 * 60 * 60, 10);
+
+  console.log({item, scanned});
+}
+
 Alpine.start();
+
+
+main();

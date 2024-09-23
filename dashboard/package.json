@@ -3,8 +3,9 @@
   "version": "1.0.0",
   "description": "Natural Dashboard",
   "scripts": {
-    "start": "parcel index.html --open",
-    "build": "parcel build index.html"
+    "clear": "rm -fr .parcel-cache dist",
+    "start": "pnpm run clear && parcel index.html --open",
+    "build": "pnpm run clear && parcel build index.html"
   },
   "dependencies": {
     "@types/alpinejs": "3.7.0",
