@@ -1,4 +1,5 @@
 import { ClientBuilder } from "./client_builder.ts";
+import { atom } from "./mod.ts";
 import { flags } from "./permission.ts";
 
 const roles = [
@@ -11,6 +12,16 @@ export const userRoles = flags<typeof roles>(roles);
 Deno.test('client_builder', async () => {
   ClientBuilder
     .builder()
+    .command('register', cmd => cmd
+      .description('Register new user')
+      .arguments(arg => [
+        arg.string('name'),
+        arg.boolean('terms').default(false),
+      ])
+      .do(async (ctx) => {
+        
+      })
+    )
     .command('admin_accept_user', cmd => cmd
       .description('Manual accepts client')
       .namespace('ns://users/*') // how to solve dynamic values like tenant? with jwt

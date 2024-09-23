@@ -29,11 +29,11 @@ interface CommandArgumentBuilderStatics {
 
 class CommandArgumentBuilder<T> {
 
-  public _description: string = "";
+  private _description: string = "";
   
   constructor(
-    public _name: string,
-    public _fallback: null | T = null
+    private _name: string,
+    private _fallback: null | T = null
   ) {
   }
 
@@ -73,13 +73,13 @@ class CommandArgumentBuilder<T> {
 }
 
 class CommandBuilder<T = object, R = void> {
-  public _name: string = '';
-  public _description: string = '';
-  public _permissions: number = 0;
-  public _namespace: string = '';
-  public _checks: Array<() => boolean> = [];
-  public _args: CommandArgument[] = [];
-  public _beahevior: (ctx: T) => Promise<R> = () => Promise.resolve(void 0 as R);
+  private _name: string = '';
+  private _description: string = '';
+  private _permissions: number = 0;
+  private _namespace: string = '';
+  private _checks: Array<() => boolean> = [];
+  private _args: CommandArgument[] = [];
+  private _beahevior: (ctx: T) => Promise<R> = () => Promise.resolve(void 0 as R);
 
   public description(description: string): CommandBuilder<T, R> {
     this._description = description;
