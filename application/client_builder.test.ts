@@ -1,6 +1,8 @@
-import { ApplicationBuilder } from "./application_builder.ts";
-import { TestBuilder } from "./application_test_builder.ts";
+import { ClientBuilder } from "./client_builder.ts";
+import { TestBuilder } from "./client_test_builder.ts";
 import { flags } from "../permission.ts";
+import { atom } from "../mod.ts";
+import { identity } from "../identity.ts";
 
 const roles = [
   "superuser",
@@ -24,25 +26,23 @@ interface AdminAcceptUser {
   who: string;
 }
 
-const client = ApplicationBuilder
+const client = ClientBuilder
   .builder()
-  // .module(UserModule)
-  // .module(AdminModule)
-  // .service('email', emailService)
-  // .factory('user', userFactory)
-  .command<CreateUser, User>("register", (cmd) =>
+  .command<CreateUser, void>("register", (cmd) =>
     cmd
       .description("Register new user")
       .arguments((arg) => [
         arg.string("name"),
         arg.boolean("terms").default(false),
       ])
-      .behaviour(async (command, atom) => {
-        atom.activity.log("User created");
-        atom.value.created_at = Date.now();
-        atom.value.name = command.name;
+      .behaviour(async (command) => {
+        const myAtom = await atom(identity(command.metadata.nsid), {}).fetch();
+        console.log(command.payload, myAtom);
+        await myAtom.do('create-new', () => {
+          console.log('hihi')
+        });
       }))
-  .command<AdminAcceptUser, User>("admin_accept_user", (cmd) =>
+  .command<AdminAcceptUser, void>("admin_accept_user", (cmd) =>
     cmd
       .description("Manual accepts client")
       .metadata((meta) =>
@@ -56,9 +56,8 @@ const client = ApplicationBuilder
           .description("Check if you accept this account")
           .default(false),
       ])
-      .behaviour(async (command, atom) => {
-        atom.activity.log(`Admin ${command.who} accepts user ${command.name}`);
-        atom.value.accepted = true;
+      .behaviour(async () => {
+        
       }));
 
 const test = TestBuilder.create(client);

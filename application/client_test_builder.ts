@@ -1,14 +1,14 @@
-import type { Client, ApplicationBuilder } from "./application_builder.ts";
+import type { Client, ClientBuilder } from "./client_builder.ts";
 import { clearStorage, dumpStorage } from "../repository.ts";
 
 export class TestBuilder {
-  static create(clientBuilder: ApplicationBuilder) {
+  static create(clientBuilder: ClientBuilder) {
     return new TestBuilder(clientBuilder);
   }
 
   private client: Client;
   private _debug: boolean = false;
-  constructor(builder: ApplicationBuilder) {
+  constructor(builder: ClientBuilder) {
     this.client = builder.build();
   }
 

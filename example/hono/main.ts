@@ -1,7 +1,10 @@
 import { Hono } from "jsr:@hono/hono@^4.5.9";
 import { app as authApp } from "./auth.ts";
-import { app as userApp } from "./user.ts";
+import { createOrRestoreUser, app as userApp, userRoles } from "./user.ts";
 import { app as adminApp } from "./admin.ts";
+import { createJwtToken } from "./jwt.ts";
+import { cors } from 'jsr:@hono/hono/cors'
+import { dumpStorage } from "../../testing.ts";
 
 // TODO:
 // Invite people to a team
@@ -11,6 +14,20 @@ import { app as adminApp } from "./admin.ts";
 // Send push notification to user
 
 export const main = new Hono();
+
+await createOrRestoreUser({ email: "a@a.com" });
+const jwt = await createJwtToken({
+  user: "ns://users/a@a.com",
+  email: "a@a.com",
+  role: userRoles.get("superuser")!,
+  expireHours: 1,
+});
+
+console.log({jwt})
+
+await dumpStorage();
+
+main.use('/*', cors());
 
 main.route("/", authApp);
 main.route("/", userApp);

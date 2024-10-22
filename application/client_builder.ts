@@ -1,20 +1,6 @@
-import type { AtomContext } from "../atom.ts";
-import { identity } from "../identity.ts";
-import { atom, type NamespacedIdentity } from "../mod.ts";
+import type { NamespacedIdentity } from "../mod.ts";
 import { has } from "../permission.ts";
 import { assert } from "../utils.ts";
-
-type CommandResultError = {
-  status: 'error',
-  error: string
-}
-
-type CommandResultOk = {
-  status: 'ok',
-  version: string,
-}
-
-type CommandResult = CommandResultError | CommandResultOk;
 
 class CommandArgument<T = unknown> {
   constructor(
@@ -48,14 +34,16 @@ class CommandArgument<T = unknown> {
   }
 }
 
-class Command<P extends object, C extends object> {
+type CommandBehaviourCallback<P, R> = (commandPayload: {payload: P, metadata: CommandRunnerMetadata}) => Promise<R>;
+
+class Command<P extends object, R> {
   constructor(
     public readonly name: string,
     public readonly description: string,
     public readonly permissions: number,
     public readonly checks: Array<[string, () => boolean]>,
     public readonly args: CommandArgument[],
-    public readonly _behaviour: (commandPayload: P, atomCtx: AtomContext<C, object>) => Promise<void>,
+    public readonly _behaviour: CommandBehaviourCallback<P, R>,
   ) {
 
   }
@@ -89,29 +77,18 @@ class Command<P extends object, C extends object> {
     return ctx;
   }
 
-  getDefaults(): C {
-    return {
 
-    } as C;
-  }
-
-  async behaviour(metadata: Metadata, args: CommandArgs): Promise<CommandResult> {
+  async behaviour(metadata: CommandRunnerMetadata, args: CommandArgs): Promise<R> {
     
     this.assertPermission(metadata.permission);
     this.assertChecks();
 
     const commandPayload = this.assertIsValid(args);
-    const defaults = this.getDefaults()
-    const currentAtom = await atom(identity(metadata.nsid), defaults).fetch();
     
-    await currentAtom.do(this.name, async (atomCtx) => {
-      await this._behaviour(commandPayload, atomCtx);
+    return this._behaviour({
+      payload: commandPayload,
+      metadata: metadata,
     });
-
-    return {
-      status: 'ok',
-      version: currentAtom.version,
-    }
   }
 }
 
@@ -195,16 +172,16 @@ class CommandMetadataBuilder {
   }
 }
 
-class CommandBuilder<T extends object, C extends object> {
+class CommandBuilder<T extends object, R> {
   private _name: string = '';
   private _description: string = '';
   private _permissions: number = 0;
   private _namespace: string = '';
   private _checks: Array<[string, () => boolean]> = [];
   private _args: CommandArgument[] = [];
-  private _beahevior: (ctx: T, atomContext: AtomContext<C, object>) => Promise<void> = () => Promise.resolve(void 0);
+  private _beahevior: CommandBehaviourCallback<T, R> = () => Promise.resolve({} as R);
 
-  public metadata(callback: (builder: CommandMetadataBuilder) => CommandMetadataBuilder): CommandBuilder<T, C> {
+  public metadata(callback: (builder: CommandMetadataBuilder) => CommandMetadataBuilder): CommandBuilder<T, R> {
     const builder = callback(new CommandMetadataBuilder());
     const metadata = builder.build();
     this._permissions = metadata.permissions;
@@ -212,12 +189,12 @@ class CommandBuilder<T extends object, C extends object> {
     return this;
   }
 
-  public description(description: string): CommandBuilder<T, C> {
+  public description(description: string): CommandBuilder<T, R> {
     this._description = description;
     return this;
   }
 
-  public arguments(callback: (builder: CommandArgumentBuilderStatics) => Array<CommandArgumentBuilder<unknown>>): CommandBuilder<T, C> {
+  public arguments(callback: (builder: CommandArgumentBuilderStatics) => Array<CommandArgumentBuilder<unknown>>): CommandBuilder<T, R> {
     const builders = callback(CommandArgumentBuilder);
     for (const builder of builders) {
       for (const arg of this._args) {
@@ -230,12 +207,12 @@ class CommandBuilder<T extends object, C extends object> {
     return this;
   }
 
-  public behaviour(callback: (ctx: T, atom: AtomContext<C, object>) => Promise<void>): CommandBuilder<T, C> {
+  public behaviour(callback: CommandBehaviourCallback<T, R>): CommandBuilder<T, R> {
     this._beahevior = callback;
     return this;
   }
 
-  build(name: string): Command<T, C> {
+  build(name: string): Command<T, R> {
     return new Command(
       name,
       this._description,
@@ -243,19 +220,19 @@ class CommandBuilder<T extends object, C extends object> {
       this._checks,
       this._args,
       this._beahevior,
-    ) as Command<T, C>;
+    ) as Command<T, R>;
   }
 }
 
-export class ApplicationBuilder {
+export class ClientBuilder {
   public commands: Command<object, object>[] = [];
   
-  static builder(): ApplicationBuilder {
-    return new ApplicationBuilder();
+  static builder(): ClientBuilder {
+    return new ClientBuilder();
   }
 
-  command<T extends object, C extends object>(name: string, callback: (cmd: CommandBuilder<T, C>) => CommandBuilder<T, C>) {
-    const cmdBuilder = callback(new CommandBuilder<T, C>());
+  command<T extends object, R>(name: string, callback: (cmd: CommandBuilder<T, R>) => CommandBuilder<T, R>) {
+    const cmdBuilder = callback(new CommandBuilder<T, R>());
     
     for (const cmd of this.commands) {
       if (cmd.name === name) {
