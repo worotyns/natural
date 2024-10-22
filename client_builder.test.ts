@@ -18,7 +18,7 @@ interface CreateUser {
   name: string;
 }
 
-interface AcceptUser {
+interface AdminAcceptUser {
   name: string;
   who: string;
 }
@@ -26,7 +26,10 @@ interface AcceptUser {
 Deno.test('client_builder', async () => {
   const client = ClientBuilder
     .builder()
+    // .module(UserModule)
+    // .module(AdminModule)
     // .service('email', emailService)
+    // .factory('user', userFactory)
     .command<CreateUser, User>('register', cmd => cmd
       .description('Register new user')
       .arguments(arg => [
@@ -39,7 +42,7 @@ Deno.test('client_builder', async () => {
         atom.value.name = command.name;
       })
     )
-    .command<AcceptUser, User>('admin_accept_user', cmd => cmd
+    .command<AdminAcceptUser, User>('admin_accept_user', cmd => cmd
       .description('Manual accepts client')
       .metadata(meta => 
         meta
