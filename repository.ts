@@ -206,7 +206,7 @@ export async function clearStorage() {
 
 export async function dumpStorage() {
   if (!isProd()) {
-    return console.log([...store.keys()]);
+    return console.log([...store]);
   }
 
   const db = await Deno.openKv();

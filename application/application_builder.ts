@@ -308,3 +308,25 @@ class Client {
 }
 
 export type { Client };
+
+
+class Atom {
+  
+}
+
+class Identity {
+
+}
+
+class InMemoryRuntime {
+
+}
+
+class DenoRuntime {
+
+}
+
+// Runtime
+// Queues
+// Storage (blobs, archive)
+// Atoms (logs, activity)
