@@ -1,4 +1,3 @@
-import { buildMessage } from "jsr:@std/internal@^1.0.2/build-message";
 import type { AtomContext } from "./atom.ts";
 import { identity } from "./identity.ts";
 import { atom, type NamespacedIdentity } from "./mod.ts";
@@ -283,6 +282,13 @@ type Metadata = {
   permission: number;
 }
 
+type CommandRunnerMetadata = {
+  nsid: NamespacedIdentity;
+  permission: number;
+  actor: string;
+  ts: number;
+}
+
 class Client {
   constructor(
     public readonly commands: Command<object, object>[]
@@ -290,7 +296,7 @@ class Client {
 
   }
 
-  async run(command: string, metadata: Metadata, args: CommandArgs): Promise<unknown> {
+  async run(command: string, metadata: CommandRunnerMetadata, args: CommandArgs): Promise<unknown> {
     const cmd = this.commands.find(c => c.name === command);
     
     if (!cmd) {

@@ -34,8 +34,9 @@ Deno.test('client_builder', async () => {
         arg.boolean('terms').default(false),
       ])
       .behaviour(async (command, atom) => {
-        command.name
         atom.activity.log('User created');
+        atom.value.created_at = Date.now();
+        atom.value.name = command.name;
       })
     )
     .command<AcceptUser, User>('admin_accept_user', cmd => cmd
@@ -49,15 +50,17 @@ Deno.test('client_builder', async () => {
         arg
           .boolean('accept')
           .description('Check if you accept this account')
-          // .check(() => true),
           .default(false)
         ]
       )
-      .behaviour(async (ctx, atom) => {
-        
+      .behaviour(async (command, atom) => {
+        atom.activity.log(`Admin ${command.who} accepts user ${command.name}`);
+        atom.value.accepted = true;
       }),
   )
   .build()
 
   console.log(client);
+
+  await client.run('register', {actor: 'jacek', ts: Date.now(), nsid: 'ns://users/xxx', permission: 0}, {});
 })
