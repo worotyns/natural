@@ -38,8 +38,8 @@ const client = ClientBuilder
       .behaviour(async (command) => {
         const myAtom = await atom(identity(command.metadata.nsid), {}).fetch();
         console.log(command.payload, myAtom);
-        await myAtom.do('create-new', () => {
-          console.log('hihi')
+        await myAtom.do("create-new", () => {
+          console.log("hihi");
         });
       }))
   .command<AdminAcceptUser, void>("admin_accept_user", (cmd) =>
@@ -57,7 +57,6 @@ const client = ClientBuilder
           .default(false),
       ])
       .behaviour(async () => {
-        
       }));
 
 const test = TestBuilder.create(client);

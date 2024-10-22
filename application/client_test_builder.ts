@@ -16,7 +16,7 @@ export class TestBuilder {
     this._debug = true;
     return this;
   }
-  
+
   // create builder like style for run and move debug, clean commands inside
   async run(callback: (client: Client) => Promise<void>) {
     await this.clean();
