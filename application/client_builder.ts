@@ -1,4 +1,3 @@
-import type { NamespacedIdentity } from "../mod.ts";
 import { has } from "../permission.ts";
 import { assert } from "../utils.ts";
 
@@ -293,13 +292,8 @@ export class ClientBuilder {
 
 type CommandArgs = Record<string, unknown>;
 
-type Metadata = {
-  nsid: NamespacedIdentity;
-  permission: number;
-};
-
 type CommandRunnerMetadata = {
-  nsid: NamespacedIdentity;
+  nsid: string;
   permission: number;
   actor: string;
   ts: number;
@@ -327,20 +321,3 @@ class Client {
 }
 
 export type { Client };
-
-class Atom {
-}
-
-class Identity {
-}
-
-class InMemoryRuntime {
-}
-
-class DenoRuntime {
-}
-
-// Runtime
-// Queues
-// Storage (blobs, archive)
-// Atoms (logs, activity)
