@@ -307,4 +307,4 @@ class Client {
   }
 }
 
-export type {Client};
+export type { Client };
