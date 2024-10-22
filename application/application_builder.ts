@@ -1,8 +1,8 @@
-import type { AtomContext } from "./atom.ts";
-import { identity } from "./identity.ts";
-import { atom, type NamespacedIdentity } from "./mod.ts";
-import { has } from "./permission.ts";
-import { assert } from "./utils.ts";
+import type { AtomContext } from "../atom.ts";
+import { identity } from "../identity.ts";
+import { atom, type NamespacedIdentity } from "../mod.ts";
+import { has } from "../permission.ts";
+import { assert } from "../utils.ts";
 
 type CommandResultError = {
   status: 'error',
@@ -247,11 +247,11 @@ class CommandBuilder<T extends object, C extends object> {
   }
 }
 
-export class ClientBuilder {
+export class ApplicationBuilder {
   public commands: Command<object, object>[] = [];
   
-  static builder(): ClientBuilder {
-    return new ClientBuilder();
+  static builder(): ApplicationBuilder {
+    return new ApplicationBuilder();
   }
 
   command<T extends object, C extends object>(name: string, callback: (cmd: CommandBuilder<T, C>) => CommandBuilder<T, C>) {
@@ -306,3 +306,5 @@ class Client {
     return cmd.behaviour(metadata, args);
   }
 }
+
+export type {Client};
